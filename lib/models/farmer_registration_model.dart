@@ -5,9 +5,11 @@ class FarmerRegistrationModel {
   final String? dob;
   final String phone;
   final String? nationality;
+  final String? idType;
+  final String? idTypeOther;
   final String? nationalId;
   final String? email;
-  
+
   // Location Information
   final String county;
   final String? district;
@@ -16,7 +18,7 @@ class FarmerRegistrationModel {
   final double? lat;
   final double? lng;
   final String? directions;
-  
+
   // Farm Information
   final String farmName;
   final String crop;
@@ -25,15 +27,15 @@ class FarmerRegistrationModel {
   final String? farmSizeManual;
   final String? farmUnitManual;
   final String? farmNotes;
-  
+
   // Mapping Information
   final String? areaHa;
   final String? areaAc;
   final String? boundaryJson;
-  
+
   // Consent
   final bool consent;
-  
+
   // File paths (for multipart upload)
   final String? farmerPhotoPath;
   final String? nationalIdPath;
@@ -46,6 +48,8 @@ class FarmerRegistrationModel {
     this.dob,
     required this.phone,
     this.nationality,
+    this.idType,
+    this.idTypeOther,
     this.nationalId,
     this.email,
     required this.county,
@@ -79,6 +83,8 @@ class FarmerRegistrationModel {
       if (dob != null) 'dob': dob,
       'phone': phone,
       if (nationality != null) 'nationality': nationality,
+      if (idType != null) 'idType': idType,
+      if (idTypeOther != null) 'idTypeOther': idTypeOther,
       if (nationalId != null) 'nationalId': nationalId,
       if (email != null) 'email': email,
       'county': county,
@@ -109,6 +115,8 @@ class FarmerRegistrationModel {
     String? dob,
     String? phone,
     String? nationality,
+    String? idType,
+    String? idTypeOther,
     String? nationalId,
     String? email,
     String? county,
@@ -140,6 +148,8 @@ class FarmerRegistrationModel {
       dob: dob ?? this.dob,
       phone: phone ?? this.phone,
       nationality: nationality ?? this.nationality,
+      idType: idType ?? this.idType,
+      idTypeOther: idTypeOther ?? this.idTypeOther,
       nationalId: nationalId ?? this.nationalId,
       email: email ?? this.email,
       county: county ?? this.county,

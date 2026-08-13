@@ -25,8 +25,18 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
   final _dobController = TextEditingController();
   final _phoneController = TextEditingController();
   final _nationalityController = TextEditingController();
+  final _idTypeOtherController = TextEditingController();
   final _nationalIdController = TextEditingController();
   final _emailController = TextEditingController();
+  String? _idType;
+
+  static const List<String> _idTypeOptions = [
+    'Driver License',
+    'National ID card',
+    'Passport',
+    'Voting ID',
+    'Others',
+  ];
   final ImagePicker _picker = ImagePicker();
   String? _photoPath;
   DateTime? _selectedDate;
@@ -247,6 +257,11 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
         _phoneController.text = phone;
       }
       _nationalityController.text = widget.initialData!['nationality'] ?? '';
+      final idTypeValue = widget.initialData!['idType'] as String?;
+      _idType = (idTypeValue != null && _idTypeOptions.contains(idTypeValue))
+          ? idTypeValue
+          : null;
+      _idTypeOtherController.text = widget.initialData!['idTypeOther'] ?? '';
       _nationalIdController.text = widget.initialData!['nationalId'] ?? '';
       _emailController.text = widget.initialData!['email'] ?? '';
       _photoPath = widget.initialData!['farmerPhotoPath'];
@@ -261,6 +276,7 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
     _dobController.dispose();
     _phoneController.dispose();
     _nationalityController.dispose();
+    _idTypeOtherController.dispose();
     _nationalIdController.dispose();
     _emailController.dispose();
     super.dispose();
@@ -279,6 +295,10 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
           : _dobController.text.trim(),
       'phone': phoneWithPrefix,
       'nationality': _nationalityController.text.trim(),
+      'idType': _idType ?? '',
+      'idTypeOther': _idType == 'Others'
+          ? _idTypeOtherController.text.trim()
+          : '',
       'nationalId': _nationalIdController.text.trim(),
       'email': _emailController.text.trim(),
       'farmerPhotoPath': _photoPath,
@@ -610,13 +630,58 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
               onTap: _showNationalityBottomSheet,
             ),
             const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              initialValue: _idType,
+              style: const TextStyle(fontSize: 14, color: Colors.black87),
+              dropdownColor: Colors.white,
+              iconEnabledColor: Colors.black87,
+              decoration: const InputDecoration(labelText: 'Type of ID'),
+              items: _idTypeOptions
+                  .map(
+                    (option) => DropdownMenuItem(
+                      value: option,
+                      child: Text(
+                        option,
+                        style: const TextStyle(color: Colors.black87),
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                setState(() {
+                  _idType = value;
+                  if (_idType != 'Others') {
+                    _idTypeOtherController.clear();
+                  }
+                  _updateData();
+                });
+              },
+            ),
+            if (_idType == 'Others') ...[
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _idTypeOtherController,
+                style: const TextStyle(fontSize: 14),
+                decoration: const InputDecoration(
+                  labelText: 'Please specify ID type',
+                  hintText: 'e.g., Refugee ID Card',
+                ),
+                validator: (value) {
+                  if (_idType == 'Others' &&
+                      (value == null || value.trim().isEmpty)) {
+                    return 'Please specify the ID type';
+                  }
+                  return null;
+                },
+              ),
+            ],
+            const SizedBox(height: 16),
             TextFormField(
               controller: _nationalIdController,
               style: const TextStyle(fontSize: 14),
               decoration: const InputDecoration(
-                labelText:
-                    'National ID Number (Citizen ID / Voter ID / Passport / Other)',
-                hintText: 'Optional',
+                labelText: 'ID Card Number / Value',
+                hintText: 'Enter the ID number shown on the selected ID',
               ),
             ),
             const SizedBox(height: 16),

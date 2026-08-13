@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import '../services/auth_service.dart';
 import '../routes/app_routes.dart';
 import 'farmer_registry_screen.dart';
@@ -48,7 +49,10 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     if (confirm == true) {
       await _authService.logout();
-      print('🚪 User logged out - Session cleared from secure storage');
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('🚪 User logged out - Session cleared from secure storage');
+      }
       if (mounted) {
         Navigator.of(context).pushReplacementNamed(AppRoutes.login);
       }

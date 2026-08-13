@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:math' as math;
 import 'dart:convert';
@@ -6,6 +7,13 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import '../services/gps_service.dart';
+
+void _log(String message) {
+  if (kDebugMode) {
+    // ignore: avoid_print
+    print(message);
+  }
+}
 
 class FarmMapWidget extends StatefulWidget {
   final double? initialLat;
@@ -71,7 +79,7 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
 
   void _onMapCreated(GoogleMapController controller) {
     _mapController = controller;
-    print('🗺️ Google Map created successfully');
+    _log('🗺️ Google Map created successfully');
 
     // Move camera to initial position
     Future.delayed(const Duration(milliseconds: 500), () {
@@ -82,7 +90,7 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
             16.0,
           ),
         );
-        print('📍 Camera moved to: ${widget.initialLat}, ${widget.initialLng}');
+        _log('📍 Camera moved to: ${widget.initialLat}, ${widget.initialLng}');
       } else {
         _mapController?.animateCamera(
           CameraUpdate.newLatLngZoom(
@@ -90,7 +98,7 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
             8.0,
           ),
         );
-        print('📍 Camera moved to default location: Liberia');
+        _log('📍 Camera moved to default location: Liberia');
       }
     });
   }
@@ -128,7 +136,7 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
         });
       }
     } catch (e) {
-      print('Error searching location: $e');
+      _log('Error searching location: $e');
       setState(() {
         _searchResults = [];
       });
@@ -440,9 +448,7 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
                 ? now.difference(_lastCaptureTime!).inSeconds
                 : 999;
             if (distance > 25 && timeSinceLastCapture < 5) {
-              print(
-                '🚫 Outlier rejected: ${distance.toStringAsFixed(1)}m jump',
-              );
+              _log('🚫 Outlier rejected: ${distance.toStringAsFixed(1)}m jump');
               return;
             }
 
@@ -463,7 +469,7 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
           // Move camera to follow user
           _mapController?.animateCamera(CameraUpdate.newLatLng(currentPoint));
 
-          print(
+          _log(
             '✅ Point captured: ${_polygonPoints.length} (accuracy: ${position.accuracy.toStringAsFixed(1)}m)',
           );
         });
@@ -806,10 +812,7 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.white,
-                      Colors.grey.shade50,
-                    ],
+                    colors: [Colors.white, Colors.grey.shade50],
                   ),
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(20),
@@ -1039,10 +1042,11 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
                                     : const Color(0xFF4CAF50),
                                 foregroundColor: Colors.white,
                                 elevation: 4,
-                                shadowColor: (_isDrawing
-                                        ? Colors.orange
-                                        : const Color(0xFF4CAF50))
-                                    .withOpacity(0.4),
+                                shadowColor:
+                                    (_isDrawing
+                                            ? Colors.orange
+                                            : const Color(0xFF4CAF50))
+                                        .withOpacity(0.4),
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 12,
                                 ),
@@ -1150,8 +1154,9 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
                                   backgroundColor: const Color(0xFF4CAF50),
                                   foregroundColor: Colors.white,
                                   elevation: 4,
-                                  shadowColor:
-                                      const Color(0xFF4CAF50).withOpacity(0.4),
+                                  shadowColor: const Color(
+                                    0xFF4CAF50,
+                                  ).withOpacity(0.4),
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 12,
                                   ),
@@ -1292,7 +1297,7 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
                   final position = await _gpsService.getCurrentLocation(
                     timeLimit: const Duration(seconds: 10),
                   );
-                  
+
                   if (position != null && _mapController != null) {
                     _mapController!.animateCamera(
                       CameraUpdate.newLatLngZoom(
@@ -1300,7 +1305,7 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
                         18.0,
                       ),
                     );
-                    
+
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(

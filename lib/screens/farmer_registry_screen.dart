@@ -176,6 +176,8 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
         dob: _formData['dob'],
         phone: _formData['phone'] ?? '',
         nationality: _formData['nationality'],
+        idType: _formData['idType'],
+        idTypeOther: _formData['idTypeOther'],
         nationalId: _formData['nationalId'],
         email: _formData['email'],
         county: _formData['county'] ?? '',

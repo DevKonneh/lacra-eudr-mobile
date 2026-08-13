@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'theme/app_theme.dart';
 import 'services/auth_service.dart';
 import 'routes/app_routes.dart';
@@ -33,7 +34,7 @@ class InspectorApp extends StatelessWidget {
           case AppRoutes.resetPassword:
             return MaterialPageRoute(
               builder: (_) =>
-                  ResetPasswordScreen(token: settings.arguments as String?),
+                  ResetPasswordScreen(email: settings.arguments as String?),
             );
           case AppRoutes.dashboard:
             return MaterialPageRoute(builder: (_) => const DashboardScreen());
@@ -74,22 +75,21 @@ class _AuthWrapperState extends State<AuthWrapper> {
     _checkAuth();
   }
 
+  void _debugLog(String message) {
+    if (kDebugMode) {
+      // ignore: avoid_print
+      print(message);
+    }
+  }
+
   Future<void> _checkAuth() async {
-    print('🔐 Checking authentication status...');
+    _debugLog('🔐 Checking authentication status...');
     final isAuth = await _authService.isAuthenticated();
 
     if (isAuth) {
-      final user = await _authService.getUser();
-      print('✅ User is authenticated');
-      if (user != null) {
-        print('   User: ${user.name} (${user.email})');
-        print('   Role: ${user.role}');
-        if (user.permissions != null && user.permissions!.isNotEmpty) {
-          print('   Permissions: ${user.permissions!.join(", ")}');
-        }
-      }
+      _debugLog('✅ User is authenticated');
     } else {
-      print('❌ User is not authenticated - showing login screen');
+      _debugLog('❌ User is not authenticated - showing login screen');
     }
 
     setState(() {

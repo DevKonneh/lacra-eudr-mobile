@@ -33,10 +33,7 @@ class LoginResponse {
       'status': status,
       'errors': errors,
       if (message != null) 'message': message,
-      'data': {
-        'token': token,
-        'user': user.toJson(),
-      },
+      'data': {'token': token, 'user': user.toJson()},
     };
   }
 }

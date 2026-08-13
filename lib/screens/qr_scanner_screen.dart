@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../routes/app_routes.dart';
+
+void _log(String message) {
+  if (kDebugMode) {
+    // ignore: avoid_print
+    print(message);
+  }
+}
 
 class QRScannerScreen extends StatefulWidget {
   const QRScannerScreen({super.key});
@@ -34,17 +42,17 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     final String? type = ModalRoute.of(context)?.settings.arguments as String?;
     final String scanType = type == 'farmer' ? 'Farmer' : 'Batch';
 
-    // Print QR scan results
-    print('========================================');
-    print('QR CODE SCANNED - $scanType Details');
-    print('========================================');
-    print('Raw QR Code Value: $code');
-    print('Scan Type: $scanType');
-    print('QR Code Length: ${code.length}');
-    
+    // Log QR scan results (debug only)
+    _log('========================================');
+    _log('QR CODE SCANNED - $scanType Details');
+    _log('========================================');
+    _log('Raw QR Code Value: $code');
+    _log('Scan Type: $scanType');
+    _log('QR Code Length: ${code.length}');
+
     // Check if it's a valid URL
     final bool isValidUrl = _isValidUrl(code);
-    print('Is Valid URL: $isValidUrl');
+    _log('Is Valid URL: $isValidUrl');
 
     setState(() {
       _isProcessing = true;
@@ -53,30 +61,29 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
 
     // Validate if it's a URL
     if (isValidUrl) {
-      print('URL Scheme: ${Uri.parse(code).scheme}');
-      print('URL Host: ${Uri.parse(code).host}');
-      print('URL Path: ${Uri.parse(code).path}');
-      print('Full URL: $code');
-      print('✅ Valid URL - Navigating to WebView');
-      print('========================================');
-      
+      _log('URL Scheme: ${Uri.parse(code).scheme}');
+      _log('URL Host: ${Uri.parse(code).host}');
+      _log('URL Path: ${Uri.parse(code).path}');
+      _log('Full URL: $code');
+      _log('✅ Valid URL - Navigating to WebView');
+      _log('========================================');
+
       setState(() {
         _scannedUrl = code;
       });
-      
+
       // Stop camera
       cameraController.stop();
-      
+
       // Navigate to webview
-      Navigator.of(context).pushReplacementNamed(
-        AppRoutes.webview,
-        arguments: code,
-      );
+      Navigator.of(
+        context,
+      ).pushReplacementNamed(AppRoutes.webview, arguments: code);
     } else {
-      print('❌ Invalid QR Code - Not a valid URL');
-      print('Error: QR code does not contain a valid HTTP/HTTPS URL');
-      print('========================================');
-      
+      _log('❌ Invalid QR Code - Not a valid URL');
+      _log('Error: QR code does not contain a valid HTTP/HTTPS URL');
+      _log('========================================');
+
       setState(() {
         _errorMessage = 'Invalid QR code. Please scan a valid URL.';
         _isProcessing = false;
@@ -101,23 +108,20 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
   @override
   Widget build(BuildContext context) {
     final String? type = ModalRoute.of(context)?.settings.arguments as String?;
-    final String title = type == 'farmer' ? 'Farmer QR Scanner' : 'Batch QR Scanner';
+    final String title = type == 'farmer'
+        ? 'Farmer QR Scanner'
+        : 'Batch QR Scanner';
     final String info = type == 'farmer'
         ? 'Position the QR code within the frame to scan farmer details'
         : 'Position the QR code within the frame to scan batch details';
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-      ),
+      appBar: AppBar(title: Text(title)),
       body: Stack(
         children: [
           // Camera View
-          MobileScanner(
-            controller: cameraController,
-            onDetect: _handleQRCode,
-          ),
-          
+          MobileScanner(controller: cameraController, onDetect: _handleQRCode),
+
           // Overlay with instructions
           Positioned(
             top: 0,
@@ -163,17 +167,14 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
               ),
             ),
           ),
-          
+
           // Scanning frame overlay
           Center(
             child: Container(
               width: 250,
               height: 250,
               decoration: BoxDecoration(
-                border: Border.all(
-                  color: const Color(0xFF4CAF50),
-                  width: 3,
-                ),
+                border: Border.all(color: const Color(0xFF4CAF50), width: 3),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Stack(
@@ -215,7 +216,10 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                       height: 30,
                       decoration: const BoxDecoration(
                         border: Border(
-                          bottom: BorderSide(color: Color(0xFF4CAF50), width: 4),
+                          bottom: BorderSide(
+                            color: Color(0xFF4CAF50),
+                            width: 4,
+                          ),
                           left: BorderSide(color: Color(0xFF4CAF50), width: 4),
                         ),
                       ),
@@ -229,7 +233,10 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                       height: 30,
                       decoration: const BoxDecoration(
                         border: Border(
-                          bottom: BorderSide(color: Color(0xFF4CAF50), width: 4),
+                          bottom: BorderSide(
+                            color: Color(0xFF4CAF50),
+                            width: 4,
+                          ),
                           right: BorderSide(color: Color(0xFF4CAF50), width: 4),
                         ),
                       ),
@@ -239,7 +246,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
               ),
             ),
           ),
-          
+
           // Bottom controls
           Positioned(
             bottom: 0,
@@ -259,7 +266,10 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                     tooltip: 'Toggle Flash',
                   ),
                   IconButton(
-                    icon: const Icon(Icons.flip_camera_ios, color: Colors.white),
+                    icon: const Icon(
+                      Icons.flip_camera_ios,
+                      color: Colors.white,
+                    ),
                     onPressed: () {
                       cameraController.switchCamera();
                     },

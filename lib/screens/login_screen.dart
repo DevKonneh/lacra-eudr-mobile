@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import '../services/auth_service.dart';
 import '../routes/app_routes.dart';
+
+/// Roles permitted to use this field-inspector app. Any other authenticated
+/// role (e.g. FARMER, BUYER, EXPORTER) is logged out immediately after login
+/// since this app's UI/flows are built exclusively for inspectors/admins.
+const List<String> _allowedAppRoles = ['ADMIN', 'INSPECTOR'];
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -41,13 +47,28 @@ class _LoginScreenState extends State<LoginScreen> {
         _passwordController.text,
       );
 
-      print('✅ Login successful - Session stored in secure storage');
-      print('   User: ${response.user.name} (${response.user.email})');
-      print('   Role: ${response.user.role}');
-      if (response.user.permissions != null && response.user.permissions!.isNotEmpty) {
-        print('   Permissions: ${response.user.permissions!.join(", ")}');
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print(
+          '✅ Login successful - ${response.user.name} (${response.user.role})',
+        );
       }
-      print('   Token stored: ${response.token.substring(0, 20)}...');
+
+      // Role-based access gating: this app is built for inspectors/admins
+      // only. Other backend roles (FARMER, BUYER, EXPORTER) can authenticate
+      // successfully against the shared API, but must not get into this
+      // app's UI, so we sign them out immediately and show a clear message.
+      if (!_allowedAppRoles.contains(response.user.role.toUpperCase())) {
+        await _authService.logout();
+        if (mounted) {
+          setState(() {
+            _errorMessage =
+                'This app is for LACRA inspectors and admins only. '
+                'Your account role (${response.user.role}) does not have access.';
+          });
+        }
+        return;
+      }
 
       if (mounted) {
         Navigator.of(context).pushReplacementNamed(AppRoutes.dashboard);
@@ -91,14 +112,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 8),
                   const Text(
                     'LACRA Platform',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Color(0xFF757575),
-                    ),
+                    style: TextStyle(fontSize: 16, color: Color(0xFF757575)),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 48),
-                  
+
                   // Email Field
                   TextFormField(
                     controller: _emailController,
@@ -119,7 +137,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Password Field
                   TextFormField(
                     controller: _passwordController,
@@ -149,19 +167,21 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                   ),
                   const SizedBox(height: 8),
-                  
+
                   // Forgot Password Link
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
                       onPressed: () {
-                        Navigator.of(context).pushNamed(AppRoutes.forgotPassword);
+                        Navigator.of(
+                          context,
+                        ).pushNamed(AppRoutes.forgotPassword);
                       },
                       child: const Text('Forgot Password?'),
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Error Message
                   if (_errorMessage != null)
                     Container(
@@ -185,7 +205,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ],
                       ),
                     ),
-                  
+
                   // Login Button
                   ElevatedButton(
                     onPressed: _isLoading ? null : _handleLogin,
@@ -198,7 +218,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             width: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
                             ),
                           )
                         : const Text('Login'),

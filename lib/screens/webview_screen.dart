@@ -123,7 +123,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
             )
           else if (_controller != null)
             WebViewWidget(controller: _controller!),
-          
+
           if (_isLoading)
             const Center(
               child: CircularProgressIndicator(

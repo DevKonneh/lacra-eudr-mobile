@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'package:http/http.dart' as http;
 import '../models/login_response_model.dart';
 import '../models/farmer_registration_model.dart';
@@ -16,50 +16,29 @@ class ApiService {
   static const String _webPreviewBaseUrl =
       'https://8100-i9tadgf8ntmirkrse9hvt-de59bda9.sandbox.novita.ai/api';
 
-  static const String baseUrl = kIsWeb ? _webPreviewBaseUrl : _productionBaseUrl;
-  static const String localBaseUrl = 'http://localhost:3000/api';
-  
+  static const String baseUrl = kIsWeb
+      ? _webPreviewBaseUrl
+      : _productionBaseUrl;
+
+  /// Debug-only logger. Never prints in release builds and never logs
+  /// sensitive values like the Authorization header or password fields.
+  static void _log(String message) {
+    if (kDebugMode) {
+      // ignore: avoid_print
+      print(message);
+    }
+  }
+
   Future<LoginResponse> inspectorLogin({
     required String email,
     required String password,
   }) async {
     try {
       final url = '$baseUrl/auth/login';
-      final headers = {
-        'Content-Type': 'application/json',
-      };
-      final body = jsonEncode({
-        'email': email,
-        'password': password,
-      });
+      final headers = {'Content-Type': 'application/json'};
+      final body = jsonEncode({'email': email, 'password': password});
 
-      // Prepare complete request data for JSON printing
-      final requestData = {
-        'url': url,
-        'method': 'POST',
-        'headers': headers,
-        'body': jsonDecode(body),
-      };
-
-      // Print API details
-      print('========================================');
-      print('API REQUEST - Inspector Login');
-      print('========================================');
-      print('Complete Request (JSON):');
-      print(const JsonEncoder.withIndent('  ').convert(requestData));
-      print('========================================');
-      
-      // Also print in detailed format
-      print('Detailed Request:');
-      print('URL: $url');
-      print('Method: POST');
-      print('Headers:');
-      headers.forEach((key, value) {
-        print('  $key: $value');
-      });
-      print('Body:');
-      print('  ${const JsonEncoder.withIndent('  ').convert(jsonDecode(body))}');
-      print('========================================');
+      _log('API REQUEST - Inspector Login: POST $url (email: $email)');
 
       final response = await http.post(
         Uri.parse(url),
@@ -67,28 +46,12 @@ class ApiService {
         body: body,
       );
 
-      // Print response details
-      print('========================================');
-      print('API RESPONSE - Inspector Login');
-      print('========================================');
-      print('Status Code: ${response.statusCode}');
-      print('Response Headers:');
-      response.headers.forEach((key, value) {
-        print('  $key: $value');
-      });
-      print('Response Body:');
-      try {
-        final responseJson = jsonDecode(response.body);
-        print('  ${const JsonEncoder.withIndent('  ').convert(responseJson)}');
-      } catch (e) {
-        print('  ${response.body}');
-      }
-      print('========================================');
+      _log('API RESPONSE - Inspector Login: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(response.body) as Map<String, dynamic>;
         final loginResponse = LoginResponse.fromJson(jsonData);
-        
+
         // Check if login was successful
         if (!loginResponse.status) {
           final errorMessage = loginResponse.errors.isNotEmpty
@@ -96,7 +59,7 @@ class ApiService {
               : (loginResponse.message ?? 'Login failed');
           throw Exception(errorMessage);
         }
-        
+
         return loginResponse;
       } else {
         final errorData = jsonDecode(response.body) as Map<String, dynamic>;
@@ -105,9 +68,7 @@ class ApiService {
             : [];
         final message = errorData['message'] as String?;
         throw Exception(
-          errors.isNotEmpty
-              ? errors.join(', ')
-              : (message ?? 'Login failed'),
+          errors.isNotEmpty ? errors.join(', ') : (message ?? 'Login failed'),
         );
       }
     } catch (e) {
@@ -200,68 +161,16 @@ class ApiService {
         }
       }
 
-      // Prepare complete request data for JSON printing
-      final requestData = {
-        'url': request.url.toString(),
-        'method': request.method,
-        'headers': request.headers,
-        'fields': request.fields,
-        'files': fileNames.isEmpty 
-            ? [] 
-            : fileNames.map((name) => {'name': name.split(': ')[0], 'path': name.split(': ').length > 1 ? name.split(': ')[1] : ''}).toList(),
-      };
-
-      // Print API details
-      print('========================================');
-      print('API REQUEST - Register Farmer');
-      print('========================================');
-      print('Complete Request (JSON):');
-      print(const JsonEncoder.withIndent('  ').convert(requestData));
-      print('========================================');
-      
-      // Also print in detailed format
-      print('Detailed Request:');
-      print('URL: ${request.url}');
-      print('Method: ${request.method}');
-      print('Headers:');
-      request.headers.forEach((key, value) {
-        print('  $key: $value');
-      });
-      print('Fields:');
-      request.fields.forEach((key, value) {
-        print('  $key: $value');
-      });
-      print('Files:');
-      if (fileNames.isEmpty) {
-        print('  (none)');
-      } else {
-        for (var fileName in fileNames) {
-          print('  $fileName');
-        }
-      }
-      print('========================================');
+      _log(
+        'API REQUEST - Register Farmer: POST ${request.url} '
+        '(${request.fields.length} fields, ${fileNames.length} files)',
+      );
 
       // Send request
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
-      // Print response details
-      print('========================================');
-      print('API RESPONSE - Register Farmer');
-      print('========================================');
-      print('Status Code: ${response.statusCode}');
-      print('Response Headers:');
-      response.headers.forEach((key, value) {
-        print('  $key: $value');
-      });
-      print('Response Body:');
-      try {
-        final responseJson = jsonDecode(response.body);
-        print('  ${const JsonEncoder.withIndent('  ').convert(responseJson)}');
-      } catch (e) {
-        print('  ${response.body}');
-      }
-      print('========================================');
+      _log('API RESPONSE - Register Farmer: ${response.statusCode}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final jsonData = jsonDecode(response.body) as Map<String, dynamic>;
@@ -269,6 +178,80 @@ class ApiService {
       } else {
         final errorData = jsonDecode(response.body);
         throw Exception(errorData['message'] ?? 'Farmer registration failed');
+      }
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception('Network error: ${e.toString()}');
+    }
+  }
+
+  /// Calls POST /auth/forget-password with {email}.
+  /// Backend always returns success (even if the account doesn't exist)
+  /// to prevent user enumeration, so this only throws on network/server errors.
+  Future<void> forgotPassword({required String email}) async {
+    try {
+      final url = '$baseUrl/auth/forget-password';
+      _log('API REQUEST - Forgot Password: POST $url (email: $email)');
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      );
+
+      _log('API RESPONSE - Forgot Password: ${response.statusCode}');
+
+      final jsonData = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode != 200) {
+        final errors = jsonData['errors'];
+        final message = jsonData['message'] as String?;
+        throw Exception(
+          (errors is List && errors.isNotEmpty)
+              ? errors.join(', ')
+              : (message ?? 'Failed to send verification code'),
+        );
+      }
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception('Network error: ${e.toString()}');
+    }
+  }
+
+  /// Calls POST /auth/reset-password with {email, verificationCode, newPassword}.
+  Future<void> resetPassword({
+    required String email,
+    required String verificationCode,
+    required String newPassword,
+  }) async {
+    try {
+      final url = '$baseUrl/auth/reset-password';
+      _log('API REQUEST - Reset Password: POST $url (email: $email)');
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'verificationCode': verificationCode,
+          'newPassword': newPassword,
+        }),
+      );
+
+      _log('API RESPONSE - Reset Password: ${response.statusCode}');
+
+      final jsonData = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode != 200) {
+        final errors = jsonData['errors'];
+        final message = jsonData['message'] as String?;
+        throw Exception(
+          (errors is List && errors.isNotEmpty)
+              ? errors.join(', ')
+              : (message ?? 'Failed to reset password'),
+        );
       }
     } catch (e) {
       if (e is Exception) {

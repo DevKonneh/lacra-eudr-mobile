@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../routes/app_routes.dart';
+import '../services/auth_service.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -11,8 +12,9 @@ class ForgotPasswordScreen extends StatefulWidget {
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
+  final _authService = AuthService();
   bool _isLoading = false;
-  bool _emailSent = false;
+  bool _codeSent = false;
   String? _errorMessage;
 
   @override
@@ -32,14 +34,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     });
 
     try {
-      // TODO: Implement API call when endpoint is provided
-      // await _apiService.forgotPassword(_emailController.text.trim());
-      
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 1));
-      
+      await _authService.forgotPassword(_emailController.text.trim());
+
       setState(() {
-        _emailSent = true;
+        _codeSent = true;
       });
     } catch (e) {
       setState(() {
@@ -57,9 +55,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Forgot Password'),
-      ),
+      appBar: AppBar(title: const Text('Forgot Password')),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -70,7 +66,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (!_emailSent) ...[
+                  if (!_codeSent) ...[
                     const Icon(
                       Icons.lock_reset,
                       size: 64,
@@ -87,15 +83,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Enter your email address and we\'ll send you a link to reset your password.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF757575),
-                      ),
+                      'Enter your email address and we\'ll send you a 6-digit verification code to reset your password.',
+                      style: TextStyle(fontSize: 14, color: Color(0xFF757575)),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 32),
-                    
+
                     // Email Field
                     TextFormField(
                       controller: _emailController,
@@ -116,7 +109,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       },
                     ),
                     const SizedBox(height: 24),
-                    
+
                     // Error Message
                     if (_errorMessage != null)
                       Container(
@@ -129,7 +122,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.error_outline, color: Colors.red.shade700),
+                            Icon(
+                              Icons.error_outline,
+                              color: Colors.red.shade700,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -140,7 +136,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           ],
                         ),
                       ),
-                    
+
                     // Submit Button
                     ElevatedButton(
                       onPressed: _isLoading ? null : _handleForgotPassword,
@@ -153,10 +149,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               width: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
                               ),
                             )
-                          : const Text('Send Reset Link'),
+                          : const Text('Send Verification Code'),
                     ),
                     const SizedBox(height: 16),
                     TextButton(
@@ -167,13 +165,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ),
                   ] else ...[
                     const Icon(
-                      Icons.check_circle,
+                      Icons.mark_email_read,
                       size: 64,
                       color: Color(0xFF4CAF50),
                     ),
                     const SizedBox(height: 24),
                     const Text(
-                      'Email Sent!',
+                      'Code Sent!',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -182,7 +180,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'We\'ve sent a password reset link to ${_emailController.text}. Please check your email.',
+                      'We\'ve sent a 6-digit verification code to ${_emailController.text}. Enter it on the next screen to reset your password.',
                       style: const TextStyle(
                         fontSize: 14,
                         color: Color(0xFF757575),
@@ -192,9 +190,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     const SizedBox(height: 32),
                     ElevatedButton(
                       onPressed: () {
-                        Navigator.of(context).pushReplacementNamed(AppRoutes.login);
+                        Navigator.of(context).pushReplacementNamed(
+                          AppRoutes.resetPassword,
+                          arguments: _emailController.text.trim(),
+                        );
                       },
-                      child: const Text('Back to Login'),
+                      child: const Text('Enter Code'),
                     ),
                   ],
                 ],

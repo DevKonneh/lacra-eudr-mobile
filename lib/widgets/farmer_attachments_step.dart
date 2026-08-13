@@ -30,7 +30,9 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
     if (widget.initialData != null) {
       _nationalIdPath = widget.initialData!['nationalIdPath'];
       _farmSelfiePath = widget.initialData!['farmSelfiePath'];
-      _farmPhotosPaths = List<String>.from(widget.initialData!['farmPhotosPaths'] ?? []);
+      _farmPhotosPaths = List<String>.from(
+        widget.initialData!['farmPhotosPaths'] ?? [],
+      );
       _consent = widget.initialData!['consent'] ?? false;
     }
     _updateData();
@@ -58,9 +60,9 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking file: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error picking file: $e')));
     }
   }
 
@@ -77,9 +79,9 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking image: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error picking image: $e')));
     }
   }
 
@@ -96,9 +98,9 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking image: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error picking image: $e')));
     }
   }
 
@@ -112,9 +114,9 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking images: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error picking images: $e')));
     }
   }
 
@@ -323,16 +325,15 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
                 _updateData();
               });
             },
-            title: const Text('Farmer agrees to data capture and verification *'),
+            title: const Text(
+              'Farmer agrees to data capture and verification *',
+            ),
             controlAffinity: ListTileControlAffinity.leading,
           ),
           const SizedBox(height: 16),
           const Text(
             'Tip: Evidence photos are very important for verification and audits.',
-            style: TextStyle(
-              fontSize: 12,
-              color: Color(0xFF757575),
-            ),
+            style: TextStyle(fontSize: 12, color: Color(0xFF757575)),
           ),
         ],
       ),
