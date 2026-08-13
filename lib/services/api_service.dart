@@ -260,4 +260,54 @@ class ApiService {
       throw Exception('Network error: ${e.toString()}');
     }
   }
+
+  /// Calls POST /farmer/offline-sync with {farmer, farms}. Used by
+  /// OfflineSyncService to flush queued farmer registrations that were
+  /// captured while offline (or that failed the live multipart submission
+  /// due to a network error). Note this endpoint accepts plain JSON only -
+  /// photos captured offline are not uploaded through this path.
+  Future<Map<String, dynamic>> syncFarmerOffline({
+    required Map<String, dynamic> farmer,
+    required List<Map<String, dynamic>> farms,
+    required String? authToken,
+  }) async {
+    try {
+      final url = '$baseUrl/farmer/offline-sync';
+      final headers = {'Content-Type': 'application/json'};
+      if (authToken != null) {
+        headers['Authorization'] = 'Bearer $authToken';
+      }
+
+      _log(
+        'API REQUEST - Offline Sync Farmer: POST $url '
+        '(${farms.length} farm(s) attached)',
+      );
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode({'farmer': farmer, 'farms': farms}),
+      );
+
+      _log('API RESPONSE - Offline Sync Farmer: ${response.statusCode}');
+
+      final jsonData = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonData;
+      } else {
+        final errors = jsonData['errors'];
+        final message = jsonData['message'] as String?;
+        throw Exception(
+          (errors is List && errors.isNotEmpty)
+              ? errors.join(', ')
+              : (message ?? 'Failed to sync farmer'),
+        );
+      }
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception('Network error: ${e.toString()}');
+    }
+  }
 }

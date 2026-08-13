@@ -5,4 +5,5 @@ class AppRoutes {
   static const String dashboard = '/dashboard';
   static const String qrScanner = '/qr-scanner';
   static const String webview = '/webview';
+  static const String pendingSync = '/pending-sync';
 }

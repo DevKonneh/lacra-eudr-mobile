@@ -10,6 +10,7 @@ import '../widgets/farmer_farm_details_step.dart';
 import '../widgets/farm_map_widget.dart';
 import '../widgets/farmer_attachments_step.dart';
 import '../widgets/farmer_review_step.dart';
+import '../services/offline_sync_service.dart';
 
 class FarmerRegistryScreen extends StatefulWidget {
   const FarmerRegistryScreen({super.key});
@@ -24,6 +25,7 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
   final Map<String, dynamic> _formData = {};
   final ApiService _apiService = ApiService();
   final AuthService _authService = AuthService();
+  final OfflineSyncService _offlineSyncService = OfflineSyncService();
   bool _isSubmitting = false;
   Map<String, dynamic>? _boundaryJson;
 
@@ -168,8 +170,6 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
     });
 
     try {
-      final token = await _authService.getToken();
-
       final farmerData = FarmerRegistrationModel(
         fullName: _formData['fullName'] ?? '',
         gender: _formData['gender'] ?? '',
@@ -206,31 +206,63 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
             : null,
       );
 
-      await _apiService.registerFarmer(
-        farmerData: farmerData,
-        authToken: token,
-      );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Farmer registered successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        // Navigate back to dashboard/home screen
-        Navigator.of(
-          context,
-        ).pushNamedAndRemoveUntil(AppRoutes.dashboard, (route) => false);
+      // If the device has no connectivity at all, don't even attempt the
+      // live submission - go straight to the offline queue so the
+      // inspector isn't stuck waiting on a call that can't succeed.
+      final hasConnectivity = await _offlineSyncService.hasConnectivity();
+      if (!hasConnectivity) {
+        await _offlineSyncService.enqueue(farmerData);
+        if (mounted) {
+          _showQueuedForSyncMessage();
+          Navigator.of(
+            context,
+          ).pushNamedAndRemoveUntil(AppRoutes.dashboard, (route) => false);
+        }
+        return;
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
+
+      try {
+        final token = await _authService.getToken();
+        await _apiService.registerFarmer(
+          farmerData: farmerData,
+          authToken: token,
         );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Farmer registered successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          // Navigate back to dashboard/home screen
+          Navigator.of(
+            context,
+          ).pushNamedAndRemoveUntil(AppRoutes.dashboard, (route) => false);
+        }
+      } catch (e) {
+        // Distinguish network failures (server unreachable / timed out)
+        // from genuine validation errors returned by the backend. Only
+        // network failures get queued for later retry - validation errors
+        // (e.g. duplicate national ID) need the inspector to fix the form.
+        if (_isNetworkError(e)) {
+          await _offlineSyncService.enqueue(farmerData);
+          if (mounted) {
+            _showQueuedForSyncMessage();
+            Navigator.of(
+              context,
+            ).pushNamedAndRemoveUntil(AppRoutes.dashboard, (route) => false);
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error: ${e.toString()}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
       }
     } finally {
       if (mounted) {
@@ -239,6 +271,28 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
         });
       }
     }
+  }
+
+  bool _isNetworkError(Object e) {
+    final message = e.toString().toLowerCase();
+    return message.contains('network error') ||
+        message.contains('socketexception') ||
+        message.contains('connection') ||
+        message.contains('timed out') ||
+        message.contains('timeout');
+  }
+
+  void _showQueuedForSyncMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'No connection - farmer saved locally and will sync automatically '
+          'once you\'re back online.',
+        ),
+        backgroundColor: Colors.orange,
+        duration: Duration(seconds: 4),
+      ),
+    );
   }
 
   void _updateBoundary(Map<String, dynamic> boundary) {
@@ -738,6 +792,59 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    ElevatedButton(
+                      onPressed: _currentStep > 0 ? _previousStep : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey.shade200,
+                        foregroundColor: Colors.black87,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        textStyle: const TextStyle(fontSize: 14),
+                      ),
+                      child: const Text('Back'),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: _currentStep < _steps.length - 1
+                          ? _nextStep
+                          : (_isSubmitting ? null : _submitForm),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        textStyle: const TextStyle(fontSize: 14),
+                      ),
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                          : Text(
+                              _currentStep < _steps.length - 1
+                                  ? 'Next'
+                                  : 'Submit',
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+          children: [
                     ElevatedButton(
                       onPressed: _currentStep > 0 ? _previousStep : null,
                       style: ElevatedButton.styleFrom(

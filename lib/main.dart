@@ -9,6 +9,7 @@ import 'screens/reset_password_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/qr_scanner_screen.dart';
 import 'screens/webview_screen.dart';
+import 'screens/pending_sync_screen.dart';
 
 void main() {
   runApp(const InspectorApp());
@@ -47,6 +48,10 @@ class InspectorApp extends StatelessWidget {
             return MaterialPageRoute(
               builder: (_) => const WebViewScreen(),
               settings: settings,
+            );
+          case AppRoutes.pendingSync:
+            return MaterialPageRoute(
+              builder: (_) => const PendingSyncScreen(),
             );
           default:
             return MaterialPageRoute(builder: (_) => const LoginScreen());
