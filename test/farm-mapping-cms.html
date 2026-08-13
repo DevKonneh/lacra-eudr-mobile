@@ -1,0 +1,1503 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Farm Mapping CMS • Inspector Portal</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- Leaflet Draw -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
+  <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+
+  <!-- Turf (Area calc) -->
+  <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+
+  <!-- QR generator -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+  <style>
+    :root{
+      --green:#0b7a33;
+      --green2:#15a34a;
+      --green3:#22c55e;
+
+      --bg:#f6fbf7;
+      --card:#ffffff;
+      --text:#0f172a;
+      --muted:#475569;
+
+      --border:#dbe7dd;
+      --shadow: 0 10px 30px rgba(15, 23, 42, .08);
+
+      --radius:16px;
+      --radius2:14px;
+
+      --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+
+    *{box-sizing:border-box}
+    html, body {height:100%}
+    body{
+      margin:0;
+      font-family:var(--font);
+      color:var(--text);
+      background:
+        radial-gradient(900px 400px at 10% 0%, rgba(34,197,94,.12), transparent 60%),
+        radial-gradient(900px 400px at 90% 0%, rgba(11,122,51,.10), transparent 60%),
+        var(--bg);
+    }
+
+    /* App Shell */
+    .shell{
+      display:grid;
+      grid-template-columns: 280px 1fr;
+      min-height:100vh;
+    }
+    @media (max-width: 980px){
+      .shell{grid-template-columns: 1fr;}
+    }
+
+    /* Sidebar */
+    .sidebar{
+      position:sticky;
+      top:0;
+      height:100vh;
+      background: #ffffff;
+      border-right:1px solid var(--border);
+      padding:14px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+    @media (max-width: 980px){
+      .sidebar{position:relative; height:auto; border-right:none; border-bottom:1px solid var(--border);}
+    }
+
+    .brand{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      padding:10px;
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, rgba(34,197,94,.10), rgba(21,163,74,.06));
+      box-shadow: var(--shadow);
+    }
+    .logo{
+      width:42px;height:42px;border-radius:14px;
+      background: radial-gradient(circle at 30% 25%, rgba(34,197,94,.92), rgba(11,122,51,.65) 55%, rgba(255,255,255,.30) 78%);
+      border:1px solid rgba(11,122,51,.22);
+    }
+    .brand h1{
+      margin:0;
+      font-size:14px;
+      letter-spacing:.2px;
+      font-weight:900;
+      line-height:1.1;
+    }
+    .brand p{
+      margin:4px 0 0;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.2;
+    }
+
+    .navGroupTitle{
+      margin:6px 6px 0;
+      font-size:11px;
+      letter-spacing:.12em;
+      color:#64748b;
+      font-weight:900;
+      text-transform:uppercase;
+    }
+
+    .steps{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      margin-top:2px;
+      flex: 1 1 auto;
+      overflow:auto;
+      padding-right:2px;
+    }
+
+    .stepBtn{
+      width:100%;
+      text-align:left;
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+
+      padding:10px 12px;
+      border-radius: 14px;
+      border:1px solid var(--border);
+      background:#fff;
+      cursor:pointer;
+      transition:.15s ease;
+    }
+    .stepBtn:hover{
+      border-color: rgba(11,122,51,.22);
+      background: rgba(11,122,51,.03);
+    }
+    .stepBtn.active{
+      border-color: rgba(11,122,51,.35);
+      box-shadow: 0 10px 20px rgba(11,122,51,.10);
+      background: rgba(11,122,51,.04);
+    }
+
+    .num{
+      width:26px;height:26px;border-radius:999px;
+      display:grid; place-items:center;
+      font-weight:900;
+      border:1px solid var(--border);
+      background: rgba(11,122,51,.05);
+      color: var(--green);
+      flex: 0 0 auto;
+      margin-top:1px;
+    }
+    .stepBtn.done .num{
+      background: rgba(34,197,94,.14);
+      border-color: rgba(34,197,94,.22);
+      color: var(--green);
+    }
+
+    .stepTitle{font-weight:900; font-size:13px}
+    .stepHint{color:var(--muted); font-size:12px; margin-top:2px; line-height:1.25}
+
+    .sideActions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      border-top:1px solid var(--border);
+      padding-top:12px;
+    }
+
+    /* Topbar */
+    .main{
+      display:flex;
+      flex-direction:column;
+      min-width: 0;
+    }
+    .topbar{
+      position:sticky;
+      top:0;
+      z-index:10;
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(10px);
+      border-bottom:1px solid var(--border);
+      padding:12px 16px;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap:wrap;
+    }
+    .topLeft{
+      display:flex;
+      flex-direction:column;
+      gap:3px;
+    }
+    .topLeft .title{
+      font-weight:950;
+      letter-spacing:.2px;
+      font-size:16px;
+    }
+    .topLeft .sub{
+      font-size:12px;
+      color:var(--muted);
+    }
+
+    .pill{
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      padding:6px 10px;
+      border-radius:999px;
+      background: rgba(11,122,51,.08);
+      border:1px solid rgba(11,122,51,.18);
+      color: var(--green);
+      font-weight:900;
+      font-size:12px;
+      white-space:nowrap;
+    }
+    .pill.gray{
+      background:#f1f5f9;
+      border-color:#e2e8f0;
+      color:#334155;
+    }
+
+    /* Buttons */
+    .btn{
+      appearance:none;
+      border:1px solid var(--border);
+      background:#fff;
+      color:var(--text);
+      padding:10px 12px;
+      border-radius: 14px;
+      cursor:pointer;
+      font-weight:850;
+      font-size:13px;
+      transition:.15s ease;
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      justify-content:center;
+    }
+    .btn:hover{ transform: translateY(-1px); box-shadow: 0 8px 16px rgba(15, 23, 42, .08); }
+    .btn.primary{
+      background: linear-gradient(135deg, var(--green), var(--green2));
+      color:#fff;
+      border-color: rgba(11,122,51,.28);
+    }
+    .btn.ghost{
+      background: rgba(11,122,51,.05);
+      border-color: rgba(11,122,51,.18);
+      color: var(--green);
+    }
+    .btn.danger{
+      background: rgba(239,68,68,.06);
+      border-color: rgba(239,68,68,.20);
+      color: #b91c1c;
+    }
+    .btn:disabled{ opacity:.55; cursor:not-allowed; transform:none; box-shadow:none; }
+
+    .toolbar{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+
+    /* Content area */
+    .wrap{
+      padding:16px;
+    }
+    .panel{
+      background: var(--card);
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+
+    .panelHead{
+      padding:14px 16px;
+      border-bottom:1px solid var(--border);
+      background: linear-gradient(180deg, rgba(11,122,51,.06), transparent);
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      justify-content:space-between;
+      flex-wrap:wrap;
+    }
+    .panelHead h2{
+      margin:0;
+      font-size:16px;
+      font-weight:950;
+    }
+    .panelHead p{
+      margin:6px 0 0;
+      font-size:13px;
+      color:var(--muted);
+      line-height:1.35;
+    }
+
+    .panelBody{
+      padding:16px;
+    }
+
+    .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+    .grid3{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; }
+    @media (max-width: 1000px){
+      .grid3{grid-template-columns: 1fr;}
+    }
+    @media (max-width: 900px){
+      .grid2{grid-template-columns: 1fr;}
+    }
+
+    label{
+      display:block;
+      margin:10px 0 6px;
+      font-size:12px;
+      color:#334155;
+      font-weight:850;
+    }
+    .req{ color:#dc2626; font-weight:950; margin-left:4px; }
+    input, select, textarea{
+      width:100%;
+      padding:11px 12px;
+      border-radius: 14px;
+      border:1px solid var(--border);
+      background:#fff;
+      color:var(--text);
+      outline:none;
+      transition:.15s ease;
+      font-size:13px;
+    }
+    input:focus, select:focus, textarea:focus{
+      border-color: rgba(11,122,51,.45);
+      box-shadow: 0 0 0 4px rgba(11,122,51,.12);
+    }
+    textarea{ min-height: 90px; resize: vertical; }
+    .help{
+      color:var(--muted);
+      font-size:12px;
+      margin-top:8px;
+      line-height:1.35;
+    }
+
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      margin-top:10px;
+    }
+
+    .divider{
+      height:1px;
+      background: var(--border);
+      margin:14px 0;
+    }
+
+    /* Footer bar */
+    .footerBar{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      padding:12px 16px;
+      border-top:1px solid var(--border);
+      background:#fff;
+    }
+    .footerText{
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.35;
+    }
+
+    /* Map */
+    #map{ height: 480px; border-radius: 16px; border:1px solid var(--border); }
+    .mapStats{
+      display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:10px;
+    }
+    .stat{
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:#fff;
+      font-size:12px;
+      font-weight:850;
+      color:#0f172a;
+      white-space:nowrap;
+    }
+    .stat b{ font-weight:950; color:var(--green); }
+
+    /* Review */
+    pre.code{
+      border:1px solid var(--border);
+      border-radius: 16px;
+      padding:12px;
+      background:#fff;
+      max-height: 460px;
+      overflow:auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size:12px;
+      color:#0b1220;
+      margin:0;
+    }
+
+    /* QR box */
+    .qrBox{
+      border:1px solid var(--border);
+      border-radius: 16px;
+      padding:12px;
+      background:#fff;
+      min-height: 180px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+
+    /* Toast */
+    .toast{
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      background: #fff;
+      border:1px solid var(--border);
+      border-left: 6px solid var(--green2);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding:12px 14px;
+      width: min(440px, calc(100vw - 32px));
+      display:none;
+      z-index: 999;
+    }
+    .toast strong{ display:block; margin-bottom:3px; font-weight:950; }
+    .toast span{ color:var(--muted); font-size:12px; line-height:1.35; }
+
+    /* Leaflet popup theme */
+    .leaflet-popup-content-wrapper{
+      border-radius: 14px;
+      border:1px solid rgba(11,122,51,.15);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="shell">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>Farm Mapping CMS</h1>
+          <p>Inspector Portal • Green/White</p>
+        </div>
+      </div>
+
+      <div class="navGroupTitle">Registration Wizard</div>
+      <div class="steps" id="steps"></div>
+
+      <div class="sideActions">
+        <button class="btn" id="btnPrev">Back</button>
+        <button class="btn primary" id="btnNext">Next</button>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+      <div class="topbar">
+        <div class="topLeft">
+          <div class="title" id="topTitle">New Farmer Registration</div>
+          <div class="sub" id="topSub">Complete each step and submit for ID + QR generation.</div>
+        </div>
+        <div class="toolbar">
+          <span class="pill" id="progressPill">Step 1 of 6</span>
+          <span class="pill gray" id="autosavePill">Draft: Not saved</span>
+          <button class="btn ghost" id="btnSaveDraftTop">Save Draft</button>
+          <button class="btn ghost" id="btnLoadDraftTop">Load Draft</button>
+          <button class="btn danger" id="btnClearAll">Clear</button>
+        </div>
+      </div>
+
+      <div class="wrap">
+        <div class="panel">
+          <div class="panelHead">
+            <div>
+              <h2 id="pageTitle">Personal Information</h2>
+              <p id="pageHint">Enter the farmer’s basic details.</p>
+            </div>
+            <div class="row">
+              <span class="pill" id="validationPill">Required fields must be completed.</span>
+            </div>
+          </div>
+
+          <div class="panelBody">
+            <!-- STEP 1: PERSONAL -->
+            <section class="page" data-step="0">
+              <div class="grid2">
+                <div>
+                  <label>Farmer Full Name <span class="req">*</span></label>
+                  <input id="fullName" placeholder="e.g., Mary T. Kamara"/>
+                </div>
+                <div>
+                  <label>Gender <span class="req">*</span></label>
+                  <select id="gender">
+                    <option value="">Select</option>
+                    <option>Male</option>
+                    <option>Female</option>
+                    <option>Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label>Date of Birth / Age</label>
+                  <input id="dob" placeholder="e.g., 1990-06-14 or 34"/>
+                </div>
+                <div>
+                  <label>Phone Number <span class="req">*</span></label>
+                  <input id="phone" placeholder="+231..."/>
+                </div>
+
+                <div>
+                  <label>Nationality</label>
+                  <input id="nationality" placeholder="e.g., Liberian"/>
+                </div>
+                <div>
+                  <label>National ID (LASSRA/Other)</label>
+                  <input id="nationalId" placeholder="e.g., LASSRA-XXXXXX"/>
+                </div>
+              </div>
+
+              <label>Farmer Photo (upload/capture)</label>
+              <input id="photo" type="file" accept="image/*"/>
+
+              <div class="help">
+                Tip: On phone/tablet, camera capture will appear automatically.
+              </div>
+            </section>
+
+            <!-- STEP 2: LOCATION + GPS -->
+            <section class="page" data-step="1" style="display:none;">
+              <div class="grid2">
+                <div>
+                  <label>County <span class="req">*</span></label>
+                  <input id="county" placeholder="e.g., Bong"/>
+                </div>
+                <div>
+                  <label>District</label>
+                  <input id="district" placeholder="e.g., District #3"/>
+                </div>
+                <div>
+                  <label>Community / Town / Village <span class="req">*</span></label>
+                  <input id="community" placeholder="e.g., Gbarnga Town"/>
+                </div>
+                <div>
+                  <label>Inspector / Enumerator Name <span class="req">*</span></label>
+                  <input id="inspectorName" placeholder="e.g., John Doe"/>
+                </div>
+              </div>
+
+              <div class="row">
+                <button class="btn primary" id="btnGPS">Capture GPS</button>
+                <button class="btn" id="btnCenter">Center on GPS</button>
+                <span class="pill" id="gpsStatus">GPS: Not captured</span>
+                <span class="pill gray" id="gpsTime">Time: —</span>
+              </div>
+
+              <div class="grid2" style="margin-top:10px;">
+                <div>
+                  <label>Latitude</label>
+                  <input id="lat" readonly placeholder="—"/>
+                </div>
+                <div>
+                  <label>Longitude</label>
+                  <input id="lng" readonly placeholder="—"/>
+                </div>
+              </div>
+
+              <label>Directions to Farm (optional)</label>
+              <textarea id="directions" placeholder="Landmarks, road description..."></textarea>
+
+              <div class="help">
+                Note: GPS works best via <b>http://localhost</b> (not file://). Desktop accuracy may be approximate.
+              </div>
+            </section>
+
+            <!-- STEP 3: FARM DETAILS -->
+            <section class="page" data-step="2" style="display:none;">
+              <div class="grid2">
+                <div>
+                  <label>Farm Name <span class="req">*</span></label>
+                  <input id="farmName" placeholder="e.g., Kamara Cocoa Farm"/>
+                </div>
+                <div>
+                  <label>Primary Crop <span class="req">*</span></label>
+                  <select id="crop">
+                    <option value="">Select</option>
+                    <option>Cocoa</option>
+                    <option>Coffee</option>
+                    <option>Oil Palm</option>
+                    <option>Rubber</option>
+                    <option>Cassava</option>
+                    <option>Vegetables</option>
+                    <option>Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label>Ownership Type <span class="req">*</span></label>
+                  <select id="ownership">
+                    <option value="">Select</option>
+                    <option>Owned</option>
+                    <option>Rented</option>
+                    <option>Family Inherited</option>
+                    <option>Communal</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label>Farm Registration Status</label>
+                  <select id="regStatus">
+                    <option value="">Select</option>
+                    <option>Registered</option>
+                    <option>Not Registered</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="grid2">
+                <div>
+                  <label>Farm Size (manual estimate)</label>
+                  <input id="farmSizeManual" placeholder="e.g., 3.2"/>
+                </div>
+                <div>
+                  <label>Unit</label>
+                  <select id="farmUnitManual">
+                    <option value="hectares">Hectares</option>
+                    <option value="acres">Acres</option>
+                  </select>
+                </div>
+              </div>
+
+              <label>Farm Notes</label>
+              <textarea id="farmNotes" placeholder="Any special notes about the farm..."></textarea>
+
+              <div class="help">
+                The exact farm size will be calculated automatically from the polygon at the Mapping step.
+              </div>
+            </section>
+
+            <!-- STEP 4: MAPPING -->
+            <section class="page" data-step="3" style="display:none;">
+              <div class="help" style="margin-bottom:10px;">
+                Draw the farm boundary polygon using the map tools (top-left). You can edit or delete after drawing.
+              </div>
+
+              <div id="map"></div>
+
+              <div class="mapStats">
+                <span class="stat" id="drawStatus">Boundary: <b>Not started</b></span>
+                <span class="stat">Area (ha): <b id="areaHa">0.0000</b></span>
+                <span class="stat">Area (ac): <b id="areaAc">0.0000</b></span>
+                <button class="btn danger" id="btnResetPoly">Reset Polygon</button>
+              </div>
+
+              <label>Boundary GeoJSON</label>
+              <textarea id="boundaryJson" readonly placeholder="GeoJSON will appear after drawing..."></textarea>
+            </section>
+
+            <!-- STEP 5: ATTACHMENTS -->
+            <section class="page" data-step="4" style="display:none;">
+              <div class="grid2">
+                <div>
+                  <label>Upload National ID / Proof (optional)</label>
+                  <input id="idUpload" type="file" accept="image/*,application/pdf"/>
+                </div>
+                <div>
+                  <label>Upload Farmer on Farm Photo (recommended)</label>
+                  <input id="farmSelfie" type="file" accept="image/*"/>
+                </div>
+              </div>
+
+              <label>Upload Farm Photos (optional, multiple)</label>
+              <input id="farmPhotos" type="file" accept="image/*" multiple/>
+
+              <div class="divider"></div>
+
+              <label>
+                <input type="checkbox" id="consent"/>
+                Farmer agrees to data capture and verification <span class="req">*</span>
+              </label>
+
+              <div class="help">
+                Evidence photos are important for verification and audits.
+              </div>
+            </section>
+
+            <!-- STEP 6: REVIEW + SUBMIT + ID + QR -->
+            <section class="page" data-step="5" style="display:none;">
+              <div class="grid2">
+                <button class="btn" id="btnExportJSON">Export JSON</button>
+                <button class="btn primary" id="btnSubmit">Submit (Generate ID & QR)</button>
+              </div>
+
+              <div class="divider"></div>
+
+              <div class="grid2">
+                <div>
+                  <label>Generated Farmer ID</label>
+                  <input id="farmerId" readonly placeholder="Will appear after submit..."/>
+                  <div class="help">
+                    Best practice: this ID is generated by the <b>server</b>. (This demo generates locally.)
+                  </div>
+
+                  <div class="row" style="margin-top:10px;">
+                    <button class="btn" id="btnCopyId">Copy ID</button>
+                    <button class="btn" id="btnPrintCard">Print ID Card</button>
+                  </div>
+                </div>
+
+                <div>
+                  <label>QR Code (Scan to verify)</label>
+                  <div class="qrBox" id="qrBox">
+                    <span class="help">QR will appear after submit.</span>
+                  </div>
+                  <div class="row" style="margin-top:10px;">
+                    <button class="btn" id="btnDownloadQR">Download QR</button>
+                    <button class="btn" id="btnCopyQRText">Copy QR Text</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="divider"></div>
+
+              <label>Preview Payload</label>
+              <pre class="code" id="review"></pre>
+
+              <div class="help">
+                If you have attachments, your backend should accept <b>FormData</b> (payload JSON + files).
+              </div>
+            </section>
+          </div>
+
+          <div class="footerBar">
+            <div class="footerText" id="footerText">
+              Complete required fields, then click <b>Next</b>.
+            </div>
+            <div class="row">
+              <button class="btn" id="btnPrev2">Back</button>
+              <button class="btn primary" id="btnNext2">Next</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast">
+    <strong id="toastTitle">Notice</strong>
+    <span id="toastMsg">—</span>
+  </div>
+
+<script>
+  // -----------------------------
+  // Toast helper
+  // -----------------------------
+  function toast(title, msg){
+    const t = document.getElementById('toast');
+    document.getElementById('toastTitle').textContent = title;
+    document.getElementById('toastMsg').textContent = msg;
+    t.style.display = 'block';
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(() => t.style.display = 'none', 3200);
+  }
+
+  // -----------------------------
+  // Wizard steps config
+  // -----------------------------
+  const STEPS = [
+    { title:"Personal Info", hint:"Farmer identity and contact", pageTitle:"Personal Information", pageHint:"Enter the farmer’s basic details." },
+    { title:"Location & GPS", hint:"County, community, capture coordinates", pageTitle:"Location & GPS", pageHint:"Enter location and capture GPS coordinates." },
+    { title:"Farm Details", hint:"Crop, ownership, notes", pageTitle:"Farm Details", pageHint:"Enter farm information (crop, ownership, registration)." },
+    { title:"Mapping", hint:"Draw farm boundary polygon", pageTitle:"Farm Mapping", pageHint:"Draw polygon boundary and confirm calculated area." },
+    { title:"Attachments", hint:"Evidence photos and consent", pageTitle:"Evidence & Consent", pageHint:"Upload supporting evidence and confirm consent." },
+    { title:"Review & Submit", hint:"Generate Farmer ID and QR", pageTitle:"Review & Submit", pageHint:"Review payload and submit to generate Farmer ID + QR." }
+  ];
+
+  // DOM helpers
+  const $ = (id) => document.getElementById(id);
+  const v = (id) => (($(id).value || "")).trim();
+
+  // Done steps tracking
+  const done = new Set();
+
+  // Current step
+  let currentStep = 0;
+
+  // Build sidebar stepper
+  function renderStepper(){
+    const stepsEl = $('steps');
+    stepsEl.innerHTML = "";
+    STEPS.forEach((s, i) => {
+      const btn = document.createElement('button');
+      btn.className = "stepBtn" + (i === currentStep ? " active" : "") + (done.has(i) ? " done" : "");
+      btn.innerHTML = `
+        <div class="num">${done.has(i) ? "✓" : (i+1)}</div>
+        <div>
+          <div class="stepTitle">${s.title}</div>
+          <div class="stepHint">${s.hint}</div>
+        </div>
+      `;
+      btn.addEventListener('click', () => goTo(i, true)); // allow quick navigation
+      stepsEl.appendChild(btn);
+    });
+  }
+
+  function showStep(i){
+    document.querySelectorAll('.page').forEach(p => p.style.display = "none");
+    document.querySelector(`.page[data-step="${i}"]`).style.display = "block";
+
+    $('pageTitle').textContent = STEPS[i].pageTitle;
+    $('pageHint').textContent = STEPS[i].pageHint;
+    $('progressPill').textContent = `Step ${i+1} of ${STEPS.length}`;
+
+    // Buttons
+    const prevDisabled = i === 0;
+    $('btnPrev').disabled = prevDisabled;
+    $('btnPrev2').disabled = prevDisabled;
+
+    const nextText = i === (STEPS.length - 1) ? "Finish" : "Next";
+    $('btnNext').textContent = nextText;
+    $('btnNext2').textContent = nextText;
+
+    // Validation indicator
+    updateValidationUI();
+
+    // Map resize when entering mapping step
+    if(i === 3 && window.__map){
+      setTimeout(() => window.__map.invalidateSize(), 120);
+    }
+
+    // Review refresh
+    if(i === 5){
+      const payload = collectPayload();
+      $('review').textContent = JSON.stringify(payload, null, 2);
+    }
+
+    renderStepper();
+  }
+
+  // -----------------------------
+  // Validation rules
+  // -----------------------------
+  function hasGPS(){
+    return !!v('lat') && !!v('lng');
+  }
+  function hasPolygon(){
+    return !!window.__currentPolygon;
+  }
+
+  function validateStep(i, showToast){
+    let ok = true, msg = "";
+
+    if(i === 0){
+      if(!v('fullName')) { ok=false; msg="Farmer Full Name is required."; }
+      else if(!v('gender')) { ok=false; msg="Gender is required."; }
+      else if(!v('phone')) { ok=false; msg="Phone Number is required."; }
+    }
+
+    if(i === 1){
+      if(!v('county')) { ok=false; msg="County is required."; }
+      else if(!v('community')) { ok=false; msg="Community/Town/Village is required."; }
+      else if(!v('inspectorName')) { ok=false; msg="Inspector/Enumerator Name is required."; }
+      // If you want GPS mandatory, uncomment:
+      // else if(!hasGPS()) { ok=false; msg="Capture GPS before proceeding."; }
+    }
+
+    if(i === 2){
+      if(!v('farmName')) { ok=false; msg="Farm Name is required."; }
+      else if(!v('crop')) { ok=false; msg="Primary Crop is required."; }
+      else if(!v('ownership')) { ok=false; msg="Ownership Type is required."; }
+    }
+
+    if(i === 3){
+      if(!hasPolygon()) { ok=false; msg="Draw the farm boundary polygon before proceeding."; }
+    }
+
+    if(i === 4){
+      if(!$('consent').checked) { ok=false; msg="Consent must be checked before proceeding."; }
+    }
+
+    if(showToast && !ok) toast("Missing Info", msg);
+    return ok;
+  }
+
+  function updateValidationUI(){
+    const ok = validateStep(currentStep, false);
+    $('validationPill').textContent = ok ? "All good. Continue." : "Required fields must be completed.";
+    $('footerText').innerHTML = ok ? "All good. Click <b>Next</b> to continue." : "Complete required fields, then click <b>Next</b>.";
+  }
+
+  // -----------------------------
+  // Navigation
+  // -----------------------------
+  function goTo(i, allowSkip){
+    // If moving forward without allowSkip, validate current step
+    if(!allowSkip && i > currentStep){
+      const ok = validateStep(currentStep, true);
+      if(!ok) return;
+      done.add(currentStep);
+    }
+    currentStep = i;
+    showStep(currentStep);
+  }
+
+  function next(){
+    const ok = validateStep(currentStep, true);
+    updateValidationUI();
+    if(!ok) return;
+
+    done.add(currentStep);
+
+    if(currentStep < STEPS.length - 1){
+      currentStep++;
+      showStep(currentStep);
+    }else{
+      toast("Completed", "Wizard finished. Submit from the Review page to generate Farmer ID & QR.");
+    }
+  }
+
+  function prev(){
+    if(currentStep === 0) return;
+    currentStep--;
+    showStep(currentStep);
+  }
+
+  $('btnNext').addEventListener('click', next);
+  $('btnNext2').addEventListener('click', next);
+  $('btnPrev').addEventListener('click', prev);
+  $('btnPrev2').addEventListener('click', prev);
+
+  // Update validation on input changes
+  document.addEventListener('input', () => {
+    updateValidationUI();
+    if(currentStep === 5){
+      $('review').textContent = JSON.stringify(collectPayload(), null, 2);
+    }
+  });
+
+  // -----------------------------
+  // Leaflet Map + Draw
+  // -----------------------------
+  const map = L.map('map').setView([6.3156, -10.8074], 12); // default Monrovia-ish
+  window.__map = map;
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 20,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  const drawnItems = new L.FeatureGroup();
+  map.addLayer(drawnItems);
+
+  let gpsMarker = null;
+  let currentPolygonLayer = null;
+  window.__currentPolygon = null;
+
+  const drawControl = new L.Control.Draw({
+    position: 'topleft',
+    draw: {
+      polygon: {
+        allowIntersection:false,
+        showArea:true,
+        shapeOptions:{ weight:2, color: "#0b7a33" }
+      },
+      rectangle:false, circle:false, circlemarker:false, marker:false, polyline:false
+    },
+    edit: { featureGroup: drawnItems, edit:true, remove:true }
+  });
+  map.addControl(drawControl);
+
+  function resetPolygon(){
+    if(currentPolygonLayer){
+      drawnItems.removeLayer(currentPolygonLayer);
+      currentPolygonLayer = null;
+    }
+    window.__currentPolygon = null;
+    $('boundaryJson').value = "";
+    $('drawStatus').innerHTML = `Boundary: <b>Not started</b>`;
+    $('areaHa').textContent = "0.0000";
+    $('areaAc').textContent = "0.0000";
+  }
+
+  function updatePolygonUI(){
+    if(!currentPolygonLayer){
+      resetPolygon();
+      return;
+    }
+    const geojson = currentPolygonLayer.toGeoJSON();
+    window.__currentPolygon = geojson;
+
+    try{
+      const areaM2 = turf.area(geojson);
+      const ha = areaM2 / 10000;
+      const ac = ha * 2.47105381;
+      $('areaHa').textContent = ha.toFixed(4);
+      $('areaAc').textContent = ac.toFixed(4);
+    }catch(e){
+      $('areaHa').textContent = "—";
+      $('areaAc').textContent = "—";
+    }
+
+    $('drawStatus').innerHTML = `Boundary: <b>Captured</b>`;
+    $('boundaryJson').value = JSON.stringify(geojson, null, 2);
+  }
+
+  map.on(L.Draw.Event.CREATED, (e) => {
+    // keep one polygon at a time for standard workflow
+    resetPolygon();
+    currentPolygonLayer = e.layer;
+    drawnItems.addLayer(currentPolygonLayer);
+    map.fitBounds(currentPolygonLayer.getBounds(), { padding:[20,20] });
+    updatePolygonUI();
+    updateValidationUI();
+  });
+
+  map.on(L.Draw.Event.EDITED, () => {
+    updatePolygonUI();
+    updateValidationUI();
+  });
+
+  map.on(L.Draw.Event.DELETED, () => {
+    currentPolygonLayer = null;
+    window.__currentPolygon = null;
+    resetPolygon();
+    updateValidationUI();
+  });
+
+  $('btnResetPoly').addEventListener('click', () => {
+    if(confirm("Reset polygon boundary?")) resetPolygon();
+    updateValidationUI();
+  });
+
+  // -----------------------------
+  // GPS capture
+  // -----------------------------
+  $('btnGPS').addEventListener('click', () => {
+    if(!navigator.geolocation){
+      $('gpsStatus').textContent = "GPS: Not supported";
+      toast("GPS Error", "Your browser does not support geolocation.");
+      return;
+    }
+    $('gpsStatus').textContent = "GPS: Capturing...";
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude, accuracy } = pos.coords;
+        $('lat').value = latitude.toFixed(6);
+        $('lng').value = longitude.toFixed(6);
+        $('gpsTime').textContent = "Time: " + new Date().toLocaleString();
+        $('gpsStatus').textContent = `GPS: Captured (±${Math.round(accuracy)}m)`;
+
+        const ll = [latitude, longitude];
+        if(!gpsMarker) gpsMarker = L.marker(ll).addTo(map);
+        else gpsMarker.setLatLng(ll);
+
+        gpsMarker.bindPopup(`<b>GPS Point</b><br/>Lat: ${$('lat').value}<br/>Lng: ${$('lng').value}<br/>Accuracy: ±${Math.round(accuracy)}m`).openPopup();
+        map.setView(ll, 16);
+
+        toast("GPS Captured", "Coordinates saved and map centered.");
+        updateValidationUI();
+      },
+      (err) => {
+        console.warn(err);
+        $('gpsStatus').textContent = "GPS: Permission denied / error";
+        toast("GPS Error", "Location permission denied or unavailable.");
+      },
+      { enableHighAccuracy:true, timeout:12000 }
+    );
+  });
+
+  $('btnCenter').addEventListener('click', () => {
+    const la = Number(v('lat')), lo = Number(v('lng'));
+    if(!isFinite(la) || !isFinite(lo)) return toast("GPS", "Capture GPS first.");
+    map.setView([la, lo], 16);
+  });
+
+  // -----------------------------
+  // Farmer ID + QR
+  // -----------------------------
+  let qrInstance = null;
+  let qrTextValue = "";
+
+  function generateFarmerId(){
+    // Demo-only. In production: generate on SERVER and return farmerId.
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,"0");
+    const day = String(d.getDate()).padStart(2,"0");
+    const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
+    return `LACRA-FMR-${y}${m}${day}-${rand}`;
+  }
+
+  function renderQR(text){
+    const box = $('qrBox');
+    box.innerHTML = "";
+    qrInstance = new QRCode(box, { text, width:160, height:160 });
+    qrTextValue = text;
+  }
+
+  function qrCanvasOrImg(){
+    const box = $('qrBox');
+    return box.querySelector("canvas") || box.querySelector("img");
+  }
+
+  // -----------------------------
+  // Payload
+  // -----------------------------
+  function collectPayload(){
+    return {
+      farmerId: $('farmerId').value || null,
+      personal: {
+        fullName: v('fullName'),
+        gender: v('gender'),
+        dobOrAge: v('dob'),
+        phone: v('phone'),
+        nationality: v('nationality'),
+        nationalId: v('nationalId')
+      },
+      location: {
+        county: v('county'),
+        district: v('district'),
+        community: v('community'),
+        directions: v('directions'),
+        gps: hasGPS() ? {
+          lat: Number(v('lat')),
+          lng: Number(v('lng')),
+          capturedAt: $('gpsTime').textContent.replace("Time: ","")
+        } : null
+      },
+      farm: {
+        farmName: v('farmName'),
+        crop: v('crop'),
+        ownership: v('ownership'),
+        registrationStatus: v('regStatus'),
+        farmSizeManual: v('farmSizeManual'),
+        farmUnitManual: v('farmUnitManual'),
+        notes: v('farmNotes')
+      },
+      mapping: {
+        boundaryGeoJSON: window.__currentPolygon || null,
+        areaHectares: Number($('areaHa').textContent || 0) || 0,
+        areaAcres: Number($('areaAc').textContent || 0) || 0
+      },
+      consent: {
+        farmerConsent: $('consent').checked
+      },
+      inspector: {
+        name: v('inspectorName'),
+        submittedOn: new Date().toISOString()
+      }
+    };
+  }
+
+  // -----------------------------
+  // Export JSON
+  // -----------------------------
+  $('btnExportJSON').addEventListener('click', () => {
+    const data = collectPayload();
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = "farm-mapping-submission.json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  // Copy ID
+  $('btnCopyId').addEventListener('click', async () => {
+    const id = $('farmerId').value;
+    if(!id) return toast("Farmer ID", "Submit first to generate the Farmer ID.");
+    try{
+      await navigator.clipboard.writeText(id);
+      toast("Copied", "Farmer ID copied to clipboard.");
+    }catch{
+      toast("Copy Failed", "Could not copy. Select and copy manually.");
+    }
+  });
+
+  // Copy QR text
+  $('btnCopyQRText').addEventListener('click', async () => {
+    if(!qrTextValue) return toast("QR", "Submit first to generate the QR.");
+    try{
+      await navigator.clipboard.writeText(qrTextValue);
+      toast("Copied", "QR text copied to clipboard.");
+    }catch{
+      toast("Copy Failed", "Could not copy. Copy manually from console.");
+      console.log("QR TEXT:", qrTextValue);
+    }
+  });
+
+  // Download QR image
+  $('btnDownloadQR').addEventListener('click', () => {
+    const node = qrCanvasOrImg();
+    if(!node) return toast("QR", "Generate QR first (Submit).");
+    let dataUrl = null;
+    if(node.tagName.toLowerCase() === "canvas") dataUrl = node.toDataURL("image/png");
+    else dataUrl = node.src;
+
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = "farmer-qr.png";
+    a.click();
+  });
+
+  // Print ID card
+  $('btnPrintCard').addEventListener('click', () => {
+    const farmerId = $('farmerId').value;
+    const node = qrCanvasOrImg();
+    if(!farmerId || !node) return toast("Print", "Submit first to generate Farmer ID & QR.");
+
+    const qrDataUrl = node.tagName.toLowerCase() === "canvas" ? node.toDataURL("image/png") : node.src;
+
+    const name = v('fullName') || "-";
+    const county = v('county') || "-";
+    const community = v('community') || "-";
+    const crop = v('crop') || "-";
+
+    const w = window.open("", "_blank");
+    w.document.write(`
+      <html><head><title>Farmer ID Card</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1"/>
+      <style>
+        body{font-family:Arial; padding:24px; background:#f6fbf7;}
+        .card{border:1px solid #dbe7dd; border-radius:14px; padding:16px; width:420px; background:#fff;}
+        .top{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+        .brand{font-weight:900; color:#0b7a33; font-size:14px;}
+        .meta{font-size:12px; color:#334155;}
+        .row{display:flex; gap:14px; align-items:center;}
+        img{width:150px; height:150px; border:1px solid #dbe7dd; border-radius:12px; padding:6px; background:#fff;}
+        .id{font-weight:900; font-size:13px; margin-bottom:8px;}
+        .line{margin:6px 0; font-size:12px;}
+        .tag{display:inline-block; margin-top:10px; font-size:11px; color:#475569;}
+      </style></head><body>
+        <div class="card">
+          <div class="top">
+            <div class="brand">Farm Mapping CMS</div>
+            <div class="meta">Inspector Portal</div>
+          </div>
+          <div class="row">
+            <img src="${qrDataUrl}" />
+            <div>
+              <div class="id">Farmer ID: ${farmerId}</div>
+              <div class="line"><b>Name:</b> ${name}</div>
+              <div class="line"><b>County:</b> ${county}</div>
+              <div class="line"><b>Community:</b> ${community}</div>
+              <div class="line"><b>Crop:</b> ${crop}</div>
+              <div class="tag">Scan QR for verification</div>
+            </div>
+          </div>
+        </div>
+        <script>window.print()</script>
+      </body></html>
+    `);
+    w.document.close();
+  });
+
+  // -----------------------------
+  // Submit
+  // -----------------------------
+  $('btnSubmit').addEventListener('click', async () => {
+    // Validate all required steps before submit
+    for(let i=0; i<STEPS.length-1; i++){
+      if(!validateStep(i, false)){
+        toast("Cannot Submit", "Some required steps are incomplete. Please complete all steps.");
+        currentStep = i;
+        showStep(currentStep);
+        return;
+      }
+    }
+
+    // Generate Farmer ID (demo)
+    const farmerId = generateFarmerId();
+    $('farmerId').value = farmerId;
+
+    // Build QR text (best practice = verification URL)
+    // Replace "yourdomain.org" with your real domain
+    const qrText = `https://yourdomain.org/farmers/${encodeURIComponent(farmerId)}`;
+    renderQR(qrText);
+
+    // Prepare payload
+    const payload = collectPayload();
+
+    // Show preview
+    $('review').textContent = JSON.stringify(payload, null, 2);
+
+    // ----------------------------------------
+    // BACKEND INTEGRATION (Recommended)
+    // ----------------------------------------
+    // If you have files, send with FormData:
+    //
+    // const fd = new FormData();
+    // fd.append("payload", new Blob([JSON.stringify(payload)], {type:"application/json"}));
+    // const photo = $("photo").files[0]; if(photo) fd.append("photo", photo);
+    // const idUpload = $("idUpload").files[0]; if(idUpload) fd.append("idUpload", idUpload);
+    // const farmSelfie = $("farmSelfie").files[0]; if(farmSelfie) fd.append("farmSelfie", farmSelfie);
+    // for (const f of $("farmPhotos").files) fd.append("farmPhotos[]", f);
+    //
+    // const res = await fetch("https://your-api-domain/api/farmers", { method:"POST", body: fd });
+    // const json = await res.json();
+    // // server should return { farmerId: "...", ... }
+    // // then set $('farmerId').value = json.farmerId; renderQR(verificationUrlFromServer);
+    //
+    // For now we only simulate success:
+    toast("Submitted (Demo)", "Farmer ID created and QR generated. Connect fetch() to your backend to store records.");
+    done.add(5);
+    renderStepper();
+  });
+
+  // -----------------------------
+  // Draft Save/Load
+  // -----------------------------
+  const DRAFT_KEY = "farmMappingCMSDraftV1";
+
+  function setAutosaveState(text){
+    $('autosavePill').textContent = text;
+  }
+
+  function getDraft(){
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if(!raw) return null;
+    try{ return JSON.parse(raw); } catch { return null; }
+  }
+
+  function saveDraft(){
+    const draft = {
+      ts: new Date().toISOString(),
+      done: [...done],
+      fields: {
+        fullName: v('fullName'),
+        gender: v('gender'),
+        dob: v('dob'),
+        phone: v('phone'),
+        nationality: v('nationality'),
+        nationalId: v('nationalId'),
+        county: v('county'),
+        district: v('district'),
+        community: v('community'),
+        inspectorName: v('inspectorName'),
+        lat: v('lat'),
+        lng: v('lng'),
+        gpsTime: $('gpsTime').textContent,
+        directions: v('directions'),
+        farmName: v('farmName'),
+        crop: v('crop'),
+        ownership: v('ownership'),
+        regStatus: v('regStatus'),
+        farmSizeManual: v('farmSizeManual'),
+        farmUnitManual: v('farmUnitManual'),
+        farmNotes: v('farmNotes'),
+        consent: $('consent').checked
+      },
+      boundary: window.__currentPolygon || null
+      // Note: Files cannot be saved in localStorage; reattach on load.
+    };
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    setAutosaveState("Draft: Saved");
+    toast("Saved", "Draft saved locally on this computer.");
+  }
+
+  function loadDraft(){
+    const d = getDraft();
+    if(!d) return toast("No Draft", "No saved draft found on this computer.");
+
+    const f = d.fields || {};
+    const set = (id, val) => { if(val !== undefined && $(id)) $(id).value = val ?? ""; };
+
+    set('fullName', f.fullName);
+    set('gender', f.gender);
+    set('dob', f.dob);
+    set('phone', f.phone);
+    set('nationality', f.nationality);
+    set('nationalId', f.nationalId);
+
+    set('county', f.county);
+    set('district', f.district);
+    set('community', f.community);
+    set('inspectorName', f.inspectorName);
+
+    set('lat', f.lat);
+    set('lng', f.lng);
+    $('gpsTime').textContent = f.gpsTime || "Time: —";
+    $('gpsStatus').textContent = (f.lat && f.lng) ? "GPS: Loaded" : "GPS: Not captured";
+
+    set('directions', f.directions);
+
+    set('farmName', f.farmName);
+    set('crop', f.crop);
+    set('ownership', f.ownership);
+    set('regStatus', f.regStatus);
+    set('farmSizeManual', f.farmSizeManual);
+    set('farmUnitManual', f.farmUnitManual);
+    set('farmNotes', f.farmNotes);
+
+    $('consent').checked = !!f.consent;
+
+    // Restore GPS marker
+    if(f.lat && f.lng){
+      const la = Number(f.lat), lo = Number(f.lng);
+      if(isFinite(la) && isFinite(lo)){
+        const ll = [la, lo];
+        if(!gpsMarker) gpsMarker = L.marker(ll).addTo(map);
+        else gpsMarker.setLatLng(ll);
+      }
+    }
+
+    // Restore polygon
+    resetPolygon();
+    if(d.boundary && d.boundary.geometry){
+      const layer = L.geoJSON(d.boundary, { style:{ weight:2, color:"#0b7a33" } }).getLayers()[0];
+      currentPolygonLayer = layer;
+      drawnItems.addLayer(layer);
+      updatePolygonUI();
+    }
+
+    // Restore done steps
+    done.clear?.();
+    (Array.isArray(d.done) ? d.done : []).forEach(x => done.add(x));
+
+    setAutosaveState("Draft: Loaded");
+    toast("Loaded", "Draft loaded. Please reattach files before submitting.");
+    updateValidationUI();
+    currentStep = 0;
+    showStep(currentStep);
+  }
+
+  $('btnSaveDraftTop').addEventListener('click', saveDraft);
+  $('btnLoadDraftTop').addEventListener('click', loadDraft);
+
+  $('btnSaveDraftTop').title = "Save draft locally (no files saved)";
+  $('btnLoadDraftTop').title = "Load draft saved on this computer";
+
+  $('btnClearAll').addEventListener('click', () => {
+    if(!confirm("Clear all fields in this form?")) return;
+
+    // Clear text/select/textarea
+    document.querySelectorAll('input, select, textarea').forEach(el => {
+      if(el.type === "file") el.value = "";
+      else if(el.type === "checkbox") el.checked = false;
+      else el.value = "";
+    });
+
+    // Reset GPS + marker
+    $('gpsStatus').textContent = "GPS: Not captured";
+    $('gpsTime').textContent = "Time: —";
+    if(gpsMarker){ map.removeLayer(gpsMarker); gpsMarker = null; }
+
+    // Reset polygon
+    resetPolygon();
+
+    // Reset QR
+    $('farmerId').value = "";
+    $('qrBox').innerHTML = `<span class="help">QR will appear after submit.</span>`;
+    qrTextValue = "";
+    qrInstance = null;
+
+    // Reset done + step
+    done.clear?.();
+    currentStep = 0;
+    setAutosaveState("Draft: Not saved");
+    toast("Cleared", "Form reset.");
+    showStep(currentStep);
+  });
+
+  // Also allow Save/Load via sidebar (same buttons are in topbar only)
+  $('btnPrev').addEventListener('click', prev);
+  $('btnNext').addEventListener('click', next);
+
+  // -----------------------------
+  // Init
+  // -----------------------------
+  // Quick top labels
+  $('topTitle').textContent = "New Farmer Registration";
+  $('topSub').textContent = "Professional CMS-style wizard for field mapping, ID + QR generation.";
+
+  setAutosaveState(getDraft() ? "Draft: Available" : "Draft: Not saved");
+  renderStepper();
+  showStep(currentStep);
+  updateValidationUI();
+</script>
+</body>
+</html>

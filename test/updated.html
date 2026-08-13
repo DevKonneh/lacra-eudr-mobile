@@ -1,0 +1,1180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>LACRA • CMIS Admin Panel</title>
+
+  <!-- Charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root{
+      /* LACRA look: green + white, with a warm gold accent from the logo */
+      --green-900:#0b3d1c;
+      --green-800:#0b5f2a;
+      --green-700:#0b7a33;
+      --green-600:#16a34a;
+      --green-100:#e9f7ee;
+
+      --gold-600:#d4a106;
+      --gold-200:#fff1c2;
+
+      --bg:#f6fbf7;
+      --card:#ffffff;
+      --text:#0f172a;
+      --muted:#475569;
+      --border:#dbe7dd;
+
+      --shadow: 0 14px 40px rgba(15, 23, 42, .10);
+      --shadow2: 0 10px 20px rgba(15, 23, 42, .08);
+
+      --r16:16px;
+      --r14:14px;
+      --r12:12px;
+
+      --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:var(--font);
+      color:var(--text);
+      background:
+        radial-gradient(1100px 520px at 10% 0%, rgba(22,163,74,.14), transparent 60%),
+        radial-gradient(1100px 520px at 90% 0%, rgba(212,161,6,.12), transparent 60%),
+        var(--bg);
+    }
+
+    /* ---------- Shared ---------- */
+    .btn{
+      appearance:none;
+      border:1px solid var(--border);
+      background:#fff;
+      color:var(--text);
+      padding:10px 12px;
+      border-radius: 14px;
+      cursor:pointer;
+      font-weight:900;
+      font-size:13px;
+      transition:.15s ease;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      user-select:none;
+      white-space:nowrap;
+    }
+    .btn:hover{transform: translateY(-1px); box-shadow: var(--shadow2);}
+    .btn.primary{
+      background: linear-gradient(135deg, var(--green-700), var(--green-600));
+      color:#fff;
+      border-color: rgba(11,122,51,.28);
+    }
+    .btn.ghost{
+      background: rgba(11,122,51,.06);
+      border-color: rgba(11,122,51,.18);
+      color: var(--green-700);
+    }
+    .btn.gold{
+      background: linear-gradient(135deg, var(--gold-600), #f3c52b);
+      color:#1b1b1b;
+      border-color: rgba(212,161,6,.30);
+    }
+    .btn.danger{
+      background: rgba(239,68,68,.07);
+      border-color: rgba(239,68,68,.22);
+      color:#991b1b;
+    }
+    .btn:disabled{opacity:.55; cursor:not-allowed; transform:none; box-shadow:none;}
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      font-weight:950;
+      font-size:12px;
+      border:1px solid var(--border);
+      background:#fff;
+      white-space:nowrap;
+    }
+    .pill.green{
+      background: rgba(11,122,51,.08);
+      border-color: rgba(11,122,51,.18);
+      color: var(--green-700);
+    }
+    .pill.gray{
+      background:#f1f5f9;
+      border-color:#e2e8f0;
+      color:#334155;
+    }
+    .pill.gold{
+      background: rgba(212,161,6,.14);
+      border-color: rgba(212,161,6,.24);
+      color:#7a5a00;
+    }
+
+    .card{
+      background: var(--card);
+      border:1px solid var(--border);
+      border-radius: var(--r16);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .cardHead{
+      padding:14px 16px;
+      border-bottom:1px solid var(--border);
+      background: linear-gradient(180deg, rgba(11,122,51,.06), transparent);
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .cardHead h2{
+      margin:0;
+      font-size:15px;
+      font-weight:950;
+      letter-spacing:.2px;
+    }
+    .cardHead p{
+      margin:6px 0 0;
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.35;
+    }
+    .cardBody{padding:16px;}
+
+    label{
+      display:block;
+      margin:10px 0 6px;
+      font-size:12px;
+      color:#334155;
+      font-weight:900;
+    }
+    input, select{
+      width:100%;
+      padding:11px 12px;
+      border-radius: 14px;
+      border:1px solid var(--border);
+      background:#fff;
+      color:var(--text);
+      outline:none;
+      transition:.15s ease;
+      font-size:13px;
+    }
+    input:focus, select:focus{
+      border-color: rgba(11,122,51,.45);
+      box-shadow: 0 0 0 4px rgba(11,122,51,.12);
+    }
+    .muted{color:var(--muted)}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;}
+    .sep{height:1px; background: var(--border); margin:14px 0;}
+
+    /* ---------- Login ---------- */
+    .loginWrap{
+      min-height:100vh;
+      display:grid;
+      place-items:center;
+      padding:18px;
+    }
+    .loginShell{
+      width:min(980px, 100%);
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap:14px;
+    }
+    @media (max-width: 980px){
+      .loginShell{grid-template-columns: 1fr;}
+    }
+    .hero{
+      padding:22px;
+      border-radius: 20px;
+      background:
+        radial-gradient(900px 480px at 20% 0%, rgba(22,163,74,.18), transparent 60%),
+        radial-gradient(900px 480px at 90% 0%, rgba(212,161,6,.16), transparent 60%),
+        #ffffff;
+      border:1px solid var(--border);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      position:relative;
+    }
+    .heroTop{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      flex-wrap:wrap;
+    }
+    .logoBox{
+      width:68px; height:68px;
+      border-radius: 18px;
+      border:1px solid rgba(11,122,51,.20);
+      background: rgba(11,122,51,.03);
+      display:grid;
+      place-items:center;
+      overflow:hidden;
+      flex:0 0 auto;
+    }
+    .logoBox img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+    }
+    .hero h1{
+      margin:0;
+      font-size:18px;
+      font-weight:1000;
+      letter-spacing:.2px;
+      line-height:1.2;
+    }
+    .hero .sub{
+      margin-top:6px;
+      font-size:13px;
+      color:var(--muted);
+      line-height:1.4;
+      max-width: 56ch;
+    }
+
+    .featureGrid{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap:10px;
+      margin-top:16px;
+    }
+    @media (max-width: 540px){
+      .featureGrid{grid-template-columns: 1fr;}
+    }
+    .feature{
+      border:1px solid var(--border);
+      border-radius: 16px;
+      padding:12px;
+      background:#fff;
+    }
+    .feature .t{
+      font-weight:950;
+      font-size:13px;
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .feature .d{
+      margin-top:6px;
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.35;
+    }
+
+    .auth{
+      border-radius: 20px;
+      border:1px solid var(--border);
+      background:#fff;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .authHead{
+      padding:16px 16px 10px;
+      border-bottom:1px solid var(--border);
+      background: linear-gradient(180deg, rgba(11,122,51,.06), transparent);
+    }
+    .authHead .t{font-weight:1000; font-size:14px}
+    .authHead .d{margin-top:5px; font-size:12px; color:var(--muted); line-height:1.35}
+    .authBody{padding:16px}
+    .authRow{display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; align-items:center; justify-content:space-between;}
+    .authSmall{font-size:12px; color:var(--muted); line-height:1.35}
+
+    /* ---------- Admin App ---------- */
+    .app{
+      display:grid;
+      grid-template-columns: 280px 1fr;
+      min-height:100vh;
+    }
+    @media (max-width: 1080px){
+      .app{grid-template-columns: 1fr;}
+    }
+
+    /* Sidebar */
+    .sidebar{
+      position:sticky;
+      top:0;
+      height:100vh;
+      background:#fff;
+      border-right:1px solid var(--border);
+      padding:14px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+    @media (max-width: 1080px){
+      .sidebar{position:relative; height:auto; border-right:none; border-bottom:1px solid var(--border);}
+    }
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:10px;
+      border:1px solid var(--border);
+      border-radius: var(--r16);
+      background: linear-gradient(135deg, rgba(22,163,74,.10), rgba(212,161,6,.08));
+      box-shadow: var(--shadow2);
+    }
+    .brand .miniLogo{
+      width:42px;height:42px;border-radius:14px;
+      border:1px solid rgba(11,122,51,.18);
+      overflow:hidden;
+      background: rgba(11,122,51,.04);
+      flex:0 0 auto;
+      display:grid;
+      place-items:center;
+    }
+    .brand .miniLogo img{width:100%; height:100%; object-fit:cover;}
+    .brand .name{font-weight:1000; font-size:13px; line-height:1.1}
+    .brand .tag{font-size:12px; color:var(--muted); margin-top:4px}
+
+    .navTitle{
+      margin:6px 6px 0;
+      font-size:11px;
+      letter-spacing:.12em;
+      color:#64748b;
+      font-weight:1000;
+      text-transform:uppercase;
+    }
+    .nav{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      flex: 1 1 auto;
+      overflow:auto;
+      padding-right:2px;
+    }
+    .navBtn{
+      width:100%;
+      text-align:left;
+      padding:10px 12px;
+      border-radius: 14px;
+      border:1px solid var(--border);
+      background:#fff;
+      cursor:pointer;
+      transition:.15s ease;
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+    }
+    .navBtn:hover{
+      background: rgba(11,122,51,.03);
+      border-color: rgba(11,122,51,.22);
+    }
+    .navBtn.active{
+      background: rgba(11,122,51,.05);
+      border-color: rgba(11,122,51,.35);
+      box-shadow: 0 10px 20px rgba(11,122,51,.10);
+    }
+    .navIcon{
+      width:26px;height:26px;border-radius:999px;
+      display:grid; place-items:center;
+      background: rgba(11,122,51,.08);
+      border:1px solid rgba(11,122,51,.16);
+      color: var(--green-700);
+      font-weight:1000;
+      flex:0 0 auto;
+      margin-top:1px;
+    }
+    .navBtn .t{font-weight:1000; font-size:13px}
+    .navBtn .s{color:var(--muted); font-size:12px; margin-top:2px; line-height:1.25}
+
+    .sideFoot{
+      border-top:1px solid var(--border);
+      padding-top:12px;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+    }
+
+    /* Main */
+    .main{
+      min-width:0;
+      display:flex;
+      flex-direction:column;
+    }
+    .topbar{
+      position:sticky;
+      top:0;
+      z-index:10;
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(10px);
+      border-bottom:1px solid var(--border);
+      padding:12px 16px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .topLeft .title{
+      font-weight:1000;
+      font-size:16px;
+      letter-spacing:.2px;
+    }
+    .topLeft .sub{
+      margin-top:3px;
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.35;
+    }
+    .topRight{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+
+    .wrap{padding:16px;}
+    .grid4{
+      display:grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap:12px;
+    }
+    @media (max-width: 1200px){ .grid4{grid-template-columns: repeat(2, minmax(0,1fr));} }
+    @media (max-width: 650px){ .grid4{grid-template-columns: 1fr;} }
+
+    .metric{
+      padding:14px 14px 12px;
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:flex-start;
+    }
+    .metric .k{font-size:12px; color:var(--muted); font-weight:900}
+    .metric .v{font-size:22px; font-weight:1000; margin-top:6px}
+    .metric .note{margin-top:6px; font-size:12px; color:var(--muted); line-height:1.35}
+    .metric .badge{
+      width:40px;height:40px;border-radius:14px;
+      display:grid; place-items:center;
+      border:1px solid rgba(11,122,51,.16);
+      background: rgba(11,122,51,.08);
+      color: var(--green-700);
+      font-weight:1000;
+      flex:0 0 auto;
+    }
+
+    .grid2{
+      display:grid;
+      grid-template-columns: 1.4fr .9fr;
+      gap:12px;
+    }
+    @media (max-width: 1100px){ .grid2{grid-template-columns: 1fr;} }
+
+    .chartBox{
+      padding:14px 16px 16px;
+    }
+    .chartCanvas{
+      width:100%;
+      height:300px;
+    }
+
+    /* Table */
+    .tableWrap{overflow:auto;}
+    table{width:100%; border-collapse:separate; border-spacing:0;}
+    thead th{
+      position:sticky; top:0; z-index:2;
+      background:#fff;
+      border-bottom:1px solid var(--border);
+      padding:12px 12px;
+      text-align:left;
+      font-size:12px;
+      letter-spacing:.04em;
+      color:#334155;
+      font-weight:1000;
+      white-space:nowrap;
+    }
+    tbody td{
+      border-bottom:1px solid var(--border);
+      padding:12px 12px;
+      font-size:13px;
+      white-space:nowrap;
+      vertical-align:middle;
+    }
+    tbody tr{background:#fff;}
+    .emptyRow{
+      padding:18px 16px;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.5;
+    }
+
+    /* Modal (optional quick view) */
+    .toast{
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      background: #fff;
+      border:1px solid var(--border);
+      border-left: 6px solid var(--green-600);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding:12px 14px;
+      width: min(460px, calc(100vw - 32px));
+      display:none;
+      z-index: 999;
+    }
+    .toast strong{display:block; margin-bottom:3px; font-weight:1000;}
+    .toast span{color:var(--muted); font-size:12px; line-height:1.35;}
+
+    /* Hide sections */
+    .hidden{display:none !important;}
+  </style>
+</head>
+
+<body>
+
+<!-- =======================
+     LOGIN PAGE
+======================= -->
+<section id="loginPage" class="loginWrap">
+  <div class="loginShell">
+
+    <div class="hero">
+      <div class="heroTop">
+        <!-- Put your logo file in the SAME folder as this HTML and name it: lacra-logo.jpg -->
+        <div class="logoBox" title="LACRA Logo">
+          <img id="loginLogo" src="lacra-logo.jpg" alt="LACRA logo"
+               onerror="this.style.display='none'; this.parentElement.style.alignItems='center'; this.parentElement.innerHTML='<div style=&quot;font-weight:1000;color:#0b7a33;&quot;>LACRA</div>';">
+        </div>
+        <div>
+          <h1>The Liberia Agriculture Commodity Regulatory Authority (LACRA)</h1>
+          <div class="sub">
+            Commodity Management Information System (CMIS) • Admin Portal<br/>
+            Secure access for oversight, approvals, reports, and institutional analytics.
+          </div>
+        </div>
+      </div>
+
+      <div class="featureGrid">
+        <div class="feature">
+          <div class="t">✅ Verification Workflow</div>
+          <div class="d">Review submissions, validate GPS & farm boundary, approve or reject with audit notes.</div>
+        </div>
+        <div class="feature">
+          <div class="t">🗺️ Mapping Oversight</div>
+          <div class="d">Track mapped area, monitor inspectors activity, and view boundary completeness.</div>
+        </div>
+        <div class="feature">
+          <div class="t">📊 Institutional Analytics</div>
+          <div class="d">Trends by county, crop, and status with clean, board-ready dashboards.</div>
+        </div>
+        <div class="feature">
+          <div class="t">🔐 Role-Based Access</div>
+          <div class="d">Admin, Reviewer, and Viewer roles with controlled access to sensitive records.</div>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+        <span class="pill green">Green & White Identity</span>
+        <span class="pill gold">Institutional Standard</span>
+        <span class="pill gray">CMS-Style Layout</span>
+      </div>
+    </div>
+
+    <div class="auth">
+      <div class="authHead">
+        <div class="t">Sign in to Admin Panel</div>
+        <div class="d">Enter your credentials to access the LACRA CMIS administration interface.</div>
+      </div>
+
+      <div class="authBody">
+        <label>Username / Email</label>
+        <input id="loginUser" placeholder="e.g., admin@lacra.gov.lr" autocomplete="username"/>
+
+        <label>Password</label>
+        <input id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password"/>
+
+        <label>Role</label>
+        <select id="loginRole">
+          <option value="Admin">Admin</option>
+          <option value="Reviewer">Reviewer</option>
+          <option value="Viewer">Viewer</option>
+        </select>
+
+        <div class="authRow">
+          <button class="btn primary" id="btnLogin">Sign In</button>
+          <button class="btn ghost" id="btnForgot">Forgot password</button>
+        </div>
+
+        <div class="sep"></div>
+
+        <div class="authSmall">
+          Note: For UI presentation, this page can be wired to your real authentication service (LDAP/SSO/DB).
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- =======================
+     ADMIN APP
+======================= -->
+<section id="app" class="app hidden">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="miniLogo" title="LACRA Logo">
+        <img id="sideLogo" src="lacra-logo.jpg" alt="LACRA logo"
+             onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=&quot;font-weight:1000;color:#0b7a33;&quot;>LACRA</div>';">
+      </div>
+      <div>
+        <div class="name">LACRA • CMIS</div>
+        <div class="tag">Administration Panel</div>
+      </div>
+    </div>
+
+    <div class="navTitle">Main</div>
+    <div class="nav">
+      <button class="navBtn active" data-view="overview">
+        <div class="navIcon">O</div>
+        <div><div class="t">Overview</div><div class="s">KPIs, trends, operational snapshot</div></div>
+      </button>
+      <button class="navBtn" data-view="registry">
+        <div class="navIcon">F</div>
+        <div><div class="t">Farmers Registry</div><div class="s">View profiles, verify, approve</div></div>
+      </button>
+      <button class="navBtn" data-view="inspections">
+        <div class="navIcon">I</div>
+        <div><div class="t">Inspections</div><div class="s">Assignment, review results, audit</div></div>
+      </button>
+      <button class="navBtn" data-view="reports">
+        <div class="navIcon">R</div>
+        <div><div class="t">Reports</div><div class="s">Export summaries, analytics, compliance</div></div>
+      </button>
+      <button class="navBtn" data-view="settings">
+        <div class="navIcon">S</div>
+        <div><div class="t">Settings</div><div class="s">Users, roles, configuration</div></div>
+      </button>
+    </div>
+
+    <div class="sideFoot">
+      <span class="pill gray" id="sessionPill">Signed in</span>
+      <button class="btn danger" id="btnLogout">Logout</button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="topbar">
+      <div class="topLeft">
+        <div class="title" id="viewTitle">Overview</div>
+        <div class="sub" id="viewSub">Institutional performance snapshot and operational summary.</div>
+      </div>
+      <div class="topRight">
+        <span class="pill green" id="rolePill">Role</span>
+        <span class="pill gold">LACRA Standard</span>
+        <button class="btn ghost" id="btnRefresh">Refresh</button>
+      </div>
+    </div>
+
+    <div class="wrap">
+
+      <!-- OVERVIEW -->
+      <section class="view" id="view-overview">
+        <div class="grid4">
+          <div class="card">
+            <div class="metric">
+              <div>
+                <div class="k">Total Farmers Registered</div>
+                <div class="v" id="kpiFarmers">—</div>
+                <div class="note">Count of unique farmer profiles in CMIS.</div>
+              </div>
+              <div class="badge">👤</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="metric">
+              <div>
+                <div class="k">Farms Mapped</div>
+                <div class="v" id="kpiFarms">—</div>
+                <div class="note">Farms with boundary polygon recorded.</div>
+              </div>
+              <div class="badge">🗺️</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="metric">
+              <div>
+                <div class="k">Pending Verification</div>
+                <div class="v" id="kpiPending">—</div>
+                <div class="note">Submitted records awaiting review decision.</div>
+              </div>
+              <div class="badge">⏳</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="metric">
+              <div>
+                <div class="k">Total Area Mapped (ha)</div>
+                <div class="v" id="kpiArea">—</div>
+                <div class="note">Calculated from approved polygons.</div>
+              </div>
+              <div class="badge">📐</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="grid2">
+          <div class="card">
+            <div class="cardHead">
+              <div>
+                <h2>Registrations Trend</h2>
+                <p>Monthly farmer registrations. Connect to your API to populate automatically.</p>
+              </div>
+              <span class="pill green">Last 6 Months</span>
+            </div>
+            <div class="chartBox">
+              <canvas id="chartTrend" class="chartCanvas"></canvas>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="cardHead">
+              <div>
+                <h2>Verification Status</h2>
+                <p>Distribution of records across status categories.</p>
+              </div>
+              <span class="pill gold">Operational</span>
+            </div>
+            <div class="chartBox">
+              <canvas id="chartStatus" class="chartCanvas"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="card">
+          <div class="cardHead">
+            <div>
+              <h2>Recent Submissions</h2>
+              <p>Latest registry submissions and verification progress.</p>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+              <span class="pill gray">Auto-updates when connected</span>
+              <button class="btn primary" id="btnOpenRegistry">Open Registry</button>
+            </div>
+          </div>
+
+          <div class="tableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Farmer ID</th>
+                  <th>Farmer</th>
+                  <th>County</th>
+                  <th>Community</th>
+                  <th>Crop</th>
+                  <th>Status</th>
+                  <th>Submitted</th>
+                </tr>
+              </thead>
+              <tbody id="recentBody">
+                <tr><td colspan="7" class="emptyRow">
+                  No submissions to display yet. Once the system is connected to your database, recent records will appear here.
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- REGISTRY -->
+      <section class="view hidden" id="view-registry">
+        <div class="card">
+          <div class="cardHead">
+            <div>
+              <h2>Farmers Registry</h2>
+              <p>Search records, open farmer profiles, and verify submissions.</p>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+              <div style="min-width:240px;">
+                <label style="margin:0 0 6px;">Search</label>
+                <input placeholder="Search Farmer ID, name, phone, county..."/>
+              </div>
+              <div style="min-width:180px;">
+                <label style="margin:0 0 6px;">Status</label>
+                <select>
+                  <option>All</option>
+                  <option>Submitted</option>
+                  <option>Under Review</option>
+                  <option>Approved</option>
+                  <option>Rejected</option>
+                </select>
+              </div>
+              <button class="btn ghost">Apply</button>
+              <button class="btn">Reset</button>
+            </div>
+          </div>
+
+          <div class="tableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Farmer ID</th>
+                  <th>Farmer</th>
+                  <th>Phone</th>
+                  <th>County</th>
+                  <th>Crop</th>
+                  <th>Area (ha)</th>
+                  <th>Status</th>
+                  <th>Last Update</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td colspan="9" class="emptyRow">
+                  Registry records will populate here from the CMIS database. The UI supports verification workflows, audit logs, and attachments.
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- INSPECTIONS -->
+      <section class="view hidden" id="view-inspections">
+        <div class="grid4" style="grid-template-columns: repeat(3, minmax(0,1fr));">
+          <div class="card">
+            <div class="metric">
+              <div>
+                <div class="k">Open Inspection Requests</div>
+                <div class="v">—</div>
+                <div class="note">Requests awaiting assignment.</div>
+              </div>
+              <div class="badge">🧾</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="metric">
+              <div>
+                <div class="k">Assigned to Inspectors</div>
+                <div class="v">—</div>
+                <div class="note">Currently in field review.</div>
+              </div>
+              <div class="badge">📌</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="metric">
+              <div>
+                <div class="k">Completed Inspections</div>
+                <div class="v">—</div>
+                <div class="note">Submitted inspection outcomes.</div>
+              </div>
+              <div class="badge">✅</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="card">
+          <div class="cardHead">
+            <div>
+              <h2>Inspection Queue</h2>
+              <p>Assign inspections, track progress, and review results for approval.</p>
+            </div>
+            <span class="pill green">Workflow</span>
+          </div>
+          <div class="cardBody">
+            <div class="muted" style="font-size:13px; line-height:1.5;">
+              This panel typically includes: inspection requests list, inspector assignment, scheduled dates, inspection findings, and review actions.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- REPORTS -->
+      <section class="view hidden" id="view-reports">
+        <div class="grid2">
+          <div class="card">
+            <div class="cardHead">
+              <div>
+                <h2>Area Mapped by County</h2>
+                <p>County comparison overview (ha). Populates from approved boundaries.</p>
+              </div>
+              <span class="pill gold">Report</span>
+            </div>
+            <div class="chartBox">
+              <canvas id="chartCounty" class="chartCanvas"></canvas>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="cardHead">
+              <div>
+                <h2>Exports</h2>
+                <p>Download registry lists and boundary datasets for analysis and reporting.</p>
+              </div>
+              <span class="pill gray">Documents</span>
+            </div>
+            <div class="cardBody" style="display:flex; gap:10px; flex-wrap:wrap;">
+              <button class="btn ghost">Export CSV</button>
+              <button class="btn ghost">Export Excel</button>
+              <button class="btn ghost">Export GeoJSON</button>
+              <button class="btn ghost">Export PDF Profiles</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section class="view hidden" id="view-settings">
+        <div class="grid2">
+          <div class="card">
+            <div class="cardHead">
+              <div>
+                <h2>User & Roles</h2>
+                <p>Manage Admin, Reviewer, and Viewer access policies.</p>
+              </div>
+              <span class="pill green">Security</span>
+            </div>
+            <div class="cardBody">
+              <div class="muted" style="font-size:13px; line-height:1.5;">
+                Typical settings include: user accounts, role permissions, activity logs, password policy, and session control.
+              </div>
+              <div class="sep"></div>
+              <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="btn primary">Add User</button>
+                <button class="btn">Manage Roles</button>
+                <button class="btn">View Audit Log</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="cardHead">
+              <div>
+                <h2>Form Requirements</h2>
+                <p>Configure what is mandatory for inspector submissions.</p>
+              </div>
+              <span class="pill gold">Policy</span>
+            </div>
+            <div class="cardBody">
+              <label><input type="checkbox" checked/> Require Farmer Name, Gender, Phone</label>
+              <label><input type="checkbox" checked/> Require Polygon Boundary</label>
+              <label><input type="checkbox" checked/> Require Consent</label>
+              <label><input type="checkbox"/> Require GPS Capture</label>
+              <label><input type="checkbox"/> Require ID Proof Upload</label>
+              <div class="sep"></div>
+              <button class="btn primary">Save Settings</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</section>
+
+<div class="toast" id="toast">
+  <strong id="toastTitle">Notice</strong>
+  <span id="toastMsg">—</span>
+</div>
+
+<script>
+  // ----------------------------
+  // Minimal UI logic for showcasing
+  // ----------------------------
+  const $ = (id) => document.getElementById(id);
+
+  function toast(title, msg){
+    const t = $('toast');
+    $('toastTitle').textContent = title;
+    $('toastMsg').textContent = msg;
+    t.style.display = 'block';
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(() => t.style.display = 'none', 3000);
+  }
+
+  // Session (client-side for presentation)
+  const SESSION_KEY = "lacra_admin_session_v1";
+
+  function setSession(session){
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  }
+  function getSession(){
+    try { return JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); } catch { return null; }
+  }
+  function clearSession(){
+    localStorage.removeItem(SESSION_KEY);
+  }
+
+  function showApp(){
+    $('loginPage').classList.add('hidden');
+    $('app').classList.remove('hidden');
+  }
+  function showLogin(){
+    $('app').classList.add('hidden');
+    $('loginPage').classList.remove('hidden');
+  }
+
+  // Navigation
+  const viewMeta = {
+    overview:{ title:"Overview", sub:"Institutional performance snapshot and operational summary." },
+    registry:{ title:"Farmers Registry", sub:"Search records, open profiles, and verify submissions." },
+    inspections:{ title:"Inspections", sub:"Inspection queue, assignments, and review workflow." },
+    reports:{ title:"Reports", sub:"County analytics and exports." },
+    settings:{ title:"Settings", sub:"Users, roles, and policy configuration." }
+  };
+
+  function setView(name){
+    document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+    $('view-' + name).classList.remove('hidden');
+
+    document.querySelectorAll('.navBtn').forEach(b => b.classList.remove('active'));
+    document.querySelector('.navBtn[data-view="' + name + '"]')?.classList.add('active');
+
+    $('viewTitle').textContent = viewMeta[name]?.title || "Admin";
+    $('viewSub').textContent = viewMeta[name]?.sub || "";
+  }
+
+  document.querySelectorAll('.navBtn').forEach(btn => {
+    btn.addEventListener('click', () => setView(btn.dataset.view));
+  });
+
+  $('btnOpenRegistry').addEventListener('click', () => setView('registry'));
+
+  // Login handlers
+  $('btnLogin').addEventListener('click', () => {
+    const user = $('loginUser').value.trim() || "admin@lacra.gov.lr";
+    const role = $('loginRole').value;
+
+    // For presentation: accept any credentials, then wire to backend later
+    setSession({ user, role, signedInAt: new Date().toISOString() });
+
+    $('rolePill').textContent = "Role: " + role;
+    $('sessionPill').textContent = user;
+
+    showApp();
+    setView('overview');
+
+    toast("Welcome", "Signed in successfully.");
+  });
+
+  $('btnForgot').addEventListener('click', () => {
+    toast("Password Recovery", "Connect this button to your email/SSO password recovery flow.");
+  });
+
+  $('btnLogout').addEventListener('click', () => {
+    clearSession();
+    showLogin();
+    toast("Signed out", "You have been logged out.");
+  });
+
+  $('btnRefresh').addEventListener('click', () => {
+    toast("Refreshed", "Dashboard refreshed.");
+  });
+
+  // ----------------------------
+  // Charts (professional look; placeholders until API is connected)
+  // NOTE: For your developer: Replace datasets with API values.
+  // ----------------------------
+  function createCharts(){
+    // Trend chart
+    const ctxTrend = document.getElementById('chartTrend');
+    new Chart(ctxTrend, {
+      type: 'line',
+      data: {
+        labels: ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan"],
+        datasets: [{
+          label: "Registrations",
+          data: [0, 0, 0, 0, 0, 0], // populate from API
+          tension: 0.35,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: true } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { beginAtZero: true }
+        }
+      }
+    });
+
+    // Status chart
+    const ctxStatus = document.getElementById('chartStatus');
+    new Chart(ctxStatus, {
+      type: 'doughnut',
+      data: {
+        labels: ["Submitted", "Under Review", "Approved", "Rejected"],
+        datasets: [{
+          label: "Records",
+          data: [0, 0, 0, 0] // populate from API
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' } },
+        cutout: '62%'
+      }
+    });
+
+    // County chart
+    const ctxCounty = document.getElementById('chartCounty');
+    new Chart(ctxCounty, {
+      type: 'bar',
+      data: {
+        labels: ["Bong", "Montserrado", "Lofa", "Nimba", "Bomi"],
+        datasets: [{
+          label: "Area (ha)",
+          data: [0, 0, 0, 0, 0] // populate from API
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: true } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  // KPI placeholders (populate from API)
+  function setKpis(){
+    $('kpiFarmers').textContent = "0";
+    $('kpiFarms').textContent = "0";
+    $('kpiPending').textContent = "0";
+    $('kpiArea').textContent = "0.00";
+  }
+
+  // Startup
+  (function init(){
+    setKpis();
+    createCharts();
+
+    const session = getSession();
+    if(session){
+      $('rolePill').textContent = "Role: " + (session.role || "Admin");
+      $('sessionPill').textContent = session.user || "admin@lacra.gov.lr";
+      showApp();
+      setView('overview');
+    }else{
+      showLogin();
+    }
+  })();
+</script>
+
+</body>
+</html>

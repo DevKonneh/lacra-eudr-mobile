@@ -1,0 +1,2004 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>LACRA • CMIS Admin Panel</title>
+
+  <!-- Leaflet (Map + Polygon Viewer) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- Charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root{
+      /* Brand */
+      --green-950:#072a13;
+      --green-900:#0b3d1c;
+      --green-800:#0b5f2a;
+      --green-700:#0b7a33;
+      --green-600:#16a34a;
+      --green-100:#e9f7ee;
+
+      --gold-600:#d4a106;
+      --gold-200:#fff1c2;
+
+      /* Light UI */
+      --bg:#f6fbf7;
+      --card:#ffffff;
+      --text:#0f172a;
+      --muted:#475569;
+      --border:#dbe7dd;
+
+      /* Sidebar */
+      --sidebar-bg:#ffffff;
+      --sidebar-text:#0f172a;
+      --sidebar-muted:#475569;
+      --sidebar-border:#dbe7dd;
+      --sidebar-active: rgba(11,122,51,.06);
+
+      /* Effects */
+      --shadow: 0 14px 40px rgba(15, 23, 42, .10);
+      --shadow2: 0 10px 20px rgba(15, 23, 42, .08);
+
+      --r18:18px;
+      --r16:16px;
+      --r14:14px;
+
+      --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+
+    /* Dark sidebar variant (keeps green/white brand accents) */
+    .dark-sidebar{
+      --sidebar-bg: #06160c;
+      --sidebar-text: #e6f6ea;
+      --sidebar-muted: rgba(230,246,234,.72);
+      --sidebar-border: rgba(255,255,255,.08);
+      --sidebar-active: rgba(22,163,74,.14);
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:var(--font);
+      color:var(--text);
+      background:
+        radial-gradient(1100px 520px at 10% 0%, rgba(22,163,74,.14), transparent 60%),
+        radial-gradient(1100px 520px at 90% 0%, rgba(212,161,6,.12), transparent 60%),
+        var(--bg);
+    }
+
+    /* Shared */
+    .btn{
+      appearance:none;
+      border:1px solid var(--border);
+      background:#fff;
+      color:var(--text);
+      padding:10px 12px;
+      border-radius: 14px;
+      cursor:pointer;
+      font-weight:900;
+      font-size:13px;
+      transition:.15s ease;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      user-select:none;
+      white-space:nowrap;
+    }
+    .btn:hover{transform: translateY(-1px); box-shadow: var(--shadow2);}
+    .btn.primary{
+      background: linear-gradient(135deg, var(--green-700), var(--green-600));
+      color:#fff;
+      border-color: rgba(11,122,51,.28);
+    }
+    .btn.ghost{
+      background: rgba(11,122,51,.06);
+      border-color: rgba(11,122,51,.18);
+      color: var(--green-700);
+    }
+    .btn.gold{
+      background: linear-gradient(135deg, var(--gold-600), #f3c52b);
+      color:#1b1b1b;
+      border-color: rgba(212,161,6,.30);
+    }
+    .btn.danger{
+      background: rgba(239,68,68,.07);
+      border-color: rgba(239,68,68,.22);
+      color:#991b1b;
+    }
+    .btn:disabled{opacity:.55; cursor:not-allowed; transform:none; box-shadow:none;}
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      font-weight:950;
+      font-size:12px;
+      border:1px solid var(--border);
+      background:#fff;
+      white-space:nowrap;
+    }
+    .pill.green{
+      background: rgba(11,122,51,.08);
+      border-color: rgba(11,122,51,.18);
+      color: var(--green-700);
+    }
+    .pill.gray{
+      background:#f1f5f9;
+      border-color:#e2e8f0;
+      color:#334155;
+    }
+    .pill.gold{
+      background: rgba(212,161,6,.14);
+      border-color: rgba(212,161,6,.24);
+      color:#7a5a00;
+    }
+    .pill.warn{
+      background: rgba(245,158,11,.12);
+      border-color: rgba(245,158,11,.25);
+      color:#92400e;
+    }
+    .pill.ok{
+      background: rgba(34,197,94,.12);
+      border-color: rgba(34,197,94,.22);
+      color:#065f46;
+    }
+    .pill.bad{
+      background: rgba(239,68,68,.10);
+      border-color: rgba(239,68,68,.22);
+      color:#991b1b;
+    }
+
+    .card{
+      background: var(--card);
+      border:1px solid var(--border);
+      border-radius: var(--r16);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .cardHead{
+      padding:14px 16px;
+      border-bottom:1px solid var(--border);
+      background: linear-gradient(180deg, rgba(11,122,51,.06), transparent);
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .cardHead h2{
+      margin:0;
+      font-size:15px;
+      font-weight:1000;
+      letter-spacing:.2px;
+    }
+    .cardHead p{
+      margin:6px 0 0;
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.35;
+    }
+    .cardBody{padding:16px;}
+
+    label{
+      display:block;
+      margin:10px 0 6px;
+      font-size:12px;
+      color:#334155;
+      font-weight:900;
+    }
+    input, select, textarea{
+      width:100%;
+      padding:11px 12px;
+      border-radius: 14px;
+      border:1px solid var(--border);
+      background:#fff;
+      color:var(--text);
+      outline:none;
+      transition:.15s ease;
+      font-size:13px;
+    }
+    input:focus, select:focus, textarea:focus{
+      border-color: rgba(11,122,51,.45);
+      box-shadow: 0 0 0 4px rgba(11,122,51,.12);
+    }
+    textarea{min-height: 90px; resize: vertical;}
+    .muted{color:var(--muted)}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;}
+    .sep{height:1px; background: var(--border); margin:14px 0;}
+
+    /* Login */
+    .loginWrap{
+      min-height:100vh;
+      display:grid;
+      place-items:center;
+      padding:18px;
+    }
+    .loginShell{
+      width:min(1020px, 100%);
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap:14px;
+    }
+    @media (max-width: 980px){ .loginShell{grid-template-columns: 1fr;} }
+    .hero{
+      padding:22px;
+      border-radius: 22px;
+      background:
+        radial-gradient(900px 480px at 20% 0%, rgba(22,163,74,.18), transparent 60%),
+        radial-gradient(900px 480px at 90% 0%, rgba(212,161,6,.16), transparent 60%),
+        #ffffff;
+      border:1px solid var(--border);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .heroTop{display:flex; align-items:center; gap:14px; flex-wrap:wrap;}
+    .logoBox{
+      width:72px; height:72px;
+      border-radius: 20px;
+      border:1px solid rgba(11,122,51,.20);
+      background: rgba(11,122,51,.03);
+      display:grid;
+      place-items:center;
+      overflow:hidden;
+      flex:0 0 auto;
+    }
+    .logoBox img{width:100%; height:100%; object-fit:cover;}
+    .hero h1{
+      margin:0;
+      font-size:18px;
+      font-weight:1100;
+      letter-spacing:.2px;
+      line-height:1.2;
+    }
+    .hero .sub{
+      margin-top:6px;
+      font-size:13px;
+      color:var(--muted);
+      line-height:1.4;
+      max-width: 62ch;
+    }
+    .featureGrid{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap:10px;
+      margin-top:16px;
+    }
+    @media (max-width: 540px){ .featureGrid{grid-template-columns: 1fr;} }
+    .feature{
+      border:1px solid var(--border);
+      border-radius: 16px;
+      padding:12px;
+      background:#fff;
+    }
+    .feature .t{font-weight:1000; font-size:13px; display:flex; align-items:center; gap:8px;}
+    .feature .d{margin-top:6px; font-size:12px; color:var(--muted); line-height:1.35;}
+
+    .auth{
+      border-radius: 22px;
+      border:1px solid var(--border);
+      background:#fff;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .authHead{
+      padding:16px 16px 10px;
+      border-bottom:1px solid var(--border);
+      background: linear-gradient(180deg, rgba(11,122,51,.06), transparent);
+    }
+    .authHead .t{font-weight:1100; font-size:14px}
+    .authHead .d{margin-top:5px; font-size:12px; color:var(--muted); line-height:1.35}
+    .authBody{padding:16px}
+    .authRow{display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; align-items:center; justify-content:space-between;}
+    .authSmall{font-size:12px; color:var(--muted); line-height:1.35}
+
+    /* App shell */
+    .app{
+      display:grid;
+      grid-template-columns: 290px 1fr;
+      min-height:100vh;
+    }
+    @media (max-width: 1080px){ .app{grid-template-columns: 1fr;} }
+
+    .sidebar{
+      position:sticky;
+      top:0;
+      height:100vh;
+      background: var(--sidebar-bg);
+      color: var(--sidebar-text);
+      border-right:1px solid var(--sidebar-border);
+      padding:14px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+    @media (max-width: 1080px){
+      .sidebar{position:relative; height:auto; border-right:none; border-bottom:1px solid var(--sidebar-border);}
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:10px;
+      border:1px solid var(--sidebar-border);
+      border-radius: var(--r16);
+      background:
+        linear-gradient(135deg,
+          rgba(22,163,74,.14),
+          rgba(212,161,6,.10)
+        );
+      box-shadow: var(--shadow2);
+    }
+    .miniLogo{
+      width:44px;height:44px;border-radius:14px;
+      border:1px solid rgba(255,255,255,.18);
+      overflow:hidden;
+      background: rgba(255,255,255,.06);
+      flex:0 0 auto;
+      display:grid;
+      place-items:center;
+    }
+    .miniLogo img{width:100%; height:100%; object-fit:cover;}
+    .brand .name{font-weight:1100; font-size:13px; line-height:1.1}
+    .brand .tag{font-size:12px; color:var(--sidebar-muted); margin-top:4px}
+
+    .navTitle{
+      margin:6px 6px 0;
+      font-size:11px;
+      letter-spacing:.12em;
+      color: var(--sidebar-muted);
+      font-weight:1100;
+      text-transform:uppercase;
+    }
+    .nav{display:flex; flex-direction:column; gap:8px; flex: 1 1 auto; overflow:auto; padding-right:2px;}
+    .navBtn{
+      width:100%;
+      text-align:left;
+      padding:10px 12px;
+      border-radius: 14px;
+      border:1px solid var(--sidebar-border);
+      background: transparent;
+      color: var(--sidebar-text);
+      cursor:pointer;
+      transition:.15s ease;
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+    }
+    .navBtn:hover{
+      background: rgba(255,255,255,.06);
+      border-color: rgba(255,255,255,.14);
+    }
+    .navBtn.active{
+      background: var(--sidebar-active);
+      border-color: rgba(22,163,74,.28);
+      box-shadow: 0 10px 20px rgba(0,0,0,.20);
+    }
+    .navIcon{
+      width:26px;height:26px;border-radius:999px;
+      display:grid; place-items:center;
+      background: rgba(22,163,74,.14);
+      border:1px solid rgba(22,163,74,.22);
+      color: #bff0cd;
+      font-weight:1100;
+      flex:0 0 auto;
+      margin-top:1px;
+    }
+    /* keep icons visible even in light sidebar mode */
+    body:not(.dark-sidebar) .navIcon{color: var(--green-700); background: rgba(11,122,51,.08); border-color: rgba(11,122,51,.16);}
+
+    .navBtn .t{font-weight:1100; font-size:13px}
+    .navBtn .s{color:var(--sidebar-muted); font-size:12px; margin-top:2px; line-height:1.25}
+
+    .sideFoot{
+      border-top:1px solid var(--sidebar-border);
+      padding-top:12px;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+    }
+
+    .main{min-width:0; display:flex; flex-direction:column;}
+    .topbar{
+      position:sticky;
+      top:0;
+      z-index:10;
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(10px);
+      border-bottom:1px solid var(--border);
+      padding:12px 16px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .topLeft .title{font-weight:1100; font-size:16px; letter-spacing:.2px;}
+    .topLeft .sub{margin-top:3px; font-size:12px; color:var(--muted); line-height:1.35;}
+    .topRight{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+
+    .wrap{padding:16px;}
+    .grid4{
+      display:grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap:12px;
+    }
+    @media (max-width: 1200px){ .grid4{grid-template-columns: repeat(2, minmax(0,1fr));} }
+    @media (max-width: 650px){ .grid4{grid-template-columns: 1fr;} }
+
+    .metric{
+      padding:14px 14px 12px;
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:flex-start;
+    }
+    .metric .k{font-size:12px; color:var(--muted); font-weight:900}
+    .metric .v{font-size:22px; font-weight:1100; margin-top:6px}
+    .metric .note{margin-top:6px; font-size:12px; color:var(--muted); line-height:1.35}
+    .metric .badge{
+      width:40px;height:40px;border-radius:14px;
+      display:grid; place-items:center;
+      border:1px solid rgba(11,122,51,.16);
+      background: rgba(11,122,51,.08);
+      color: var(--green-700);
+      font-weight:1100;
+      flex:0 0 auto;
+    }
+
+    .grid2{
+      display:grid;
+      grid-template-columns: 1.4fr .9fr;
+      gap:12px;
+    }
+    @media (max-width: 1100px){ .grid2{grid-template-columns: 1fr;} }
+
+    .chartBox{padding:14px 16px 16px;}
+    .chartCanvas{width:100%; height:300px;}
+
+    /* Table */
+    .tableWrap{overflow:auto;}
+    table{width:100%; border-collapse:separate; border-spacing:0;}
+    thead th{
+      position:sticky; top:0; z-index:2;
+      background:#fff;
+      border-bottom:1px solid var(--border);
+      padding:12px 12px;
+      text-align:left;
+      font-size:12px;
+      letter-spacing:.04em;
+      color:#334155;
+      font-weight:1100;
+      white-space:nowrap;
+    }
+    tbody td{
+      border-bottom:1px solid var(--border);
+      padding:12px 12px;
+      font-size:13px;
+      white-space:nowrap;
+      vertical-align:middle;
+    }
+    tbody tr{background:#fff; cursor:pointer;}
+    tbody tr:hover{background: rgba(11,122,51,.03);}
+    .emptyRow{padding:18px 16px; color:var(--muted); font-size:13px; line-height:1.5;}
+
+    .tag{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:#fff;
+      font-weight:1100; font-size:12px;
+    }
+    .tag.submitted{border-color: rgba(59,130,246,.22); background: rgba(59,130,246,.08); color:#1e3a8a;}
+    .tag.review{border-color: rgba(245,158,11,.25); background: rgba(245,158,11,.12); color:#92400e;}
+    .tag.approved{border-color: rgba(34,197,94,.22); background: rgba(34,197,94,.12); color:#065f46;}
+    .tag.rejected{border-color: rgba(239,68,68,.22); background: rgba(239,68,68,.10); color:#991b1b;}
+
+    /* Views */
+    .hidden{display:none !important;}
+
+    /* Drawer (Farmer Profile) */
+    .drawerBackdrop{
+      position:fixed; inset:0;
+      background: rgba(2, 6, 23, .40);
+      display:none;
+      z-index: 80;
+    }
+    .drawer{
+      position:fixed; top:0; right:0;
+      height:100vh; width:min(620px, 100vw);
+      background:#fff;
+      border-left:1px solid var(--border);
+      box-shadow: 0 20px 60px rgba(0,0,0,.25);
+      transform: translateX(102%);
+      transition: .18s ease;
+      z-index: 90;
+      display:flex; flex-direction:column;
+    }
+    .drawer.open{transform: translateX(0);}
+    .drawerHead{
+      padding:14px 16px;
+      border-bottom:1px solid var(--border);
+      display:flex; justify-content:space-between; align-items:flex-start; gap:10px;
+      background: linear-gradient(180deg, rgba(11,122,51,.06), transparent);
+    }
+    .drawerHead h3{margin:0; font-weight:1100; font-size:15px;}
+    .drawerHead .sub{margin-top:4px; color:var(--muted); font-size:12px; line-height:1.35}
+    .drawerBody{padding:14px 16px; overflow:auto; display:flex; flex-direction:column; gap:12px;}
+    .drawerSection{
+      border:1px solid var(--border);
+      border-radius: var(--r16);
+      background:#fff;
+      overflow:hidden;
+    }
+    .drawerSection .h{
+      padding:12px 12px;
+      border-bottom:1px solid var(--border);
+      font-weight:1100;
+      font-size:13px;
+      display:flex; justify-content:space-between; align-items:center; gap:10px;
+      background: rgba(11,122,51,.03);
+    }
+    .drawerSection .b{padding:12px;}
+    .kv{display:grid; grid-template-columns: 1fr 1fr; gap:10px;}
+    @media (max-width: 640px){ .kv{grid-template-columns: 1fr;} }
+    .kv .k{color:var(--muted); font-size:12px; font-weight:900;}
+    .kv .v{font-size:13px; font-weight:1000; margin-top:4px;}
+    #profileMap{height: 280px; border-radius: 14px; border:1px solid var(--border);}
+
+    .thumbs{display:grid; grid-template-columns: repeat(3, 1fr); gap:10px;}
+    @media (max-width: 520px){ .thumbs{grid-template-columns: repeat(2, 1fr);} }
+    .thumb{
+      border:1px solid var(--border);
+      border-radius: 14px;
+      overflow:hidden;
+      background:#fff;
+      height: 92px;
+      display:flex; align-items:center; justify-content:center;
+      font-size:12px; color:var(--muted);
+      position:relative;
+    }
+    .thumb img{width:100%; height:100%; object-fit:cover;}
+    .thumb .cap{
+      position:absolute; left:8px; bottom:8px;
+      padding:4px 8px;
+      border-radius:999px;
+      background: rgba(255,255,255,.88);
+      border:1px solid rgba(0,0,0,.06);
+      font-size:11px;
+      font-weight:1000;
+      color:#0f172a;
+    }
+
+    .drawerFoot{
+      padding:12px 16px;
+      border-top:1px solid var(--border);
+      background:#fff;
+      display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between; align-items:center;
+    }
+    .small{font-size:12px; color:var(--muted); line-height:1.35}
+
+    /* Toast */
+    .toast{
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      background: #fff;
+      border:1px solid var(--border);
+      border-left: 6px solid var(--green-600);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding:12px 14px;
+      width: min(460px, calc(100vw - 32px));
+      display:none;
+      z-index: 999;
+    }
+    .toast strong{display:block; margin-bottom:3px; font-weight:1100;}
+    .toast span{color:var(--muted); font-size:12px; line-height:1.35}
+  </style>
+</head>
+
+<body>
+
+<!-- =======================
+     LOGIN PAGE
+======================= -->
+<section id="loginPage" class="loginWrap">
+  <div class="loginShell">
+
+    <div class="hero">
+      <div class="heroTop">
+        <!-- Put your logo file in SAME folder as this HTML and name it: lacra-logo.jpg -->
+        <div class="logoBox" title="LACRA Logo">
+          <img src="lacra-logo.jpg" alt="LACRA logo"
+               onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=&quot;font-weight:1100;color:#0b7a33;&quot;>LACRA</div>';">
+        </div>
+        <div>
+          <h1>The Liberia Agriculture Commodity Regulatory Authority (LACRA)</h1>
+          <div class="sub">
+            Commodity Management Information System (CMIS) • Admin Portal<br/>
+            Secure oversight for registration, mapping verification, approvals, and analytics.
+          </div>
+        </div>
+      </div>
+
+      <div class="featureGrid">
+        <div class="feature">
+          <div class="t">✅ Verification Workflow</div>
+          <div class="d">Approve/Reject farmer records with structured reviewer notes and audit trail.</div>
+        </div>
+        <div class="feature">
+          <div class="t">🗺️ Map & Polygon Review</div>
+          <div class="d">View GPS point and farm boundary polygon directly on the map.</div>
+        </div>
+        <div class="feature">
+          <div class="t">📎 Attachments & Evidence</div>
+          <div class="d">Check farmer photo, ID proof, and farm images before approval.</div>
+        </div>
+        <div class="feature">
+          <div class="t">📊 Institutional Dashboards</div>
+          <div class="d">County/crop/status trends for leadership reporting and planning.</div>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+        <span class="pill green">Green & White Identity</span>
+        <span class="pill gold">LACRA Standard</span>
+        <span class="pill gray">Role-Based Access</span>
+      </div>
+    </div>
+
+    <div class="auth">
+      <div class="authHead">
+        <div class="t">Sign in to Admin Panel</div>
+        <div class="d">Enter credentials to access the CMIS administration interface.</div>
+      </div>
+
+      <div class="authBody">
+        <label>Username / Email</label>
+        <input id="loginUser" placeholder="e.g., admin@lacra.gov.lr" autocomplete="username"/>
+
+        <label>Password</label>
+        <input id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password"/>
+
+        <label>Role</label>
+        <select id="loginRole">
+          <option value="Admin">Admin</option>
+          <option value="Reviewer">Reviewer</option>
+          <option value="Viewer">Viewer</option>
+        </select>
+
+        <div class="authRow">
+          <button class="btn primary" id="btnLogin">Sign In</button>
+          <button class="btn ghost" id="btnForgot">Forgot password</button>
+        </div>
+
+        <div class="sep"></div>
+
+        <div class="authSmall">
+          This UI is ready to connect to your authentication service (SSO/LDAP/DB).
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- =======================
+     ADMIN APP
+======================= -->
+<section id="app" class="app hidden">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="miniLogo" title="LACRA Logo">
+        <img src="lacra-logo.jpg" alt="LACRA logo"
+             onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=&quot;font-weight:1100;color:#0b7a33;&quot;>LACRA</div>';">
+      </div>
+      <div>
+        <div class="name">LACRA • CMIS</div>
+        <div class="tag">Administration Panel</div>
+      </div>
+    </div>
+
+    <div class="navTitle">Main</div>
+    <div class="nav">
+      <button class="navBtn active" data-view="overview">
+        <div class="navIcon">O</div>
+        <div><div class="t">Overview</div><div class="s">KPIs, trends, operational snapshot</div></div>
+      </button>
+      <button class="navBtn" data-view="registry">
+        <div class="navIcon">F</div>
+        <div><div class="t">Farmers Registry</div><div class="s">View & verify farmer records</div></div>
+      </button>
+      <button class="navBtn" data-view="inspections">
+        <div class="navIcon">I</div>
+        <div><div class="t">Inspections</div><div class="s">Assignments, queue & audit</div></div>
+      </button>
+      <button class="navBtn" data-view="reports">
+        <div class="navIcon">R</div>
+        <div><div class="t">Reports</div><div class="s">County analytics & exports</div></div>
+      </button>
+      <button class="navBtn" data-view="settings">
+        <div class="navIcon">S</div>
+        <div><div class="t">Settings</div><div class="s">Users, roles & configuration</div></div>
+      </button>
+    </div>
+
+    <div class="sideFoot">
+      <button class="btn ghost" id="btnToggleSidebar">Toggle Dark Sidebar</button>
+      <button class="btn danger" id="btnLogout">Logout</button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="topbar">
+      <div class="topLeft">
+        <div class="title" id="viewTitle">Overview</div>
+        <div class="sub" id="viewSub">Institutional performance snapshot and operational summary.</div>
+      </div>
+      <div class="topRight">
+        <span class="pill green" id="rolePill">Role</span>
+        <span class="pill gold">LACRA Standard</span>
+        <span class="pill gray" id="sessionPill">Signed in</span>
+        <button class="btn ghost" id="btnSync">Sync</button>
+      </div>
+    </div>
+
+    <div class="wrap">
+
+      <!-- OVERVIEW -->
+      <section class="view" id="view-overview">
+        <div class="grid4">
+          <div class="card">
+            <div class="metric">
+              <div>
+                <div class="k">Total Farmers Registered</div>
+                <div class="v" id="kpiFarmers">0</div>
+                <div class="note">Unique farmer profiles in CMIS.</div>
+              </div>
+              <div class="badge">👤</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="metric">
+              <div>
+                <div class="k">Farms Mapped</div>
+                <div class="v" id="kpiFarms">0</div>
+                <div class="note">Farms with boundary polygon recorded.</div>
+              </div>
+              <div class="badge">🗺️</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="metric">
+              <div>
+                <div class="k">Pending Verification</div>
+                <div class="v" id="kpiPending">0</div>
+                <div class="note">Submitted / Under Review awaiting decision.</div>
+              </div>
+              <div class="badge">⏳</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="metric">
+              <div>
+                <div class="k">Approved Area (ha)</div>
+                <div class="v" id="kpiArea">0.00</div>
+                <div class="note">Calculated from approved polygons.</div>
+              </div>
+              <div class="badge">📐</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="grid2">
+          <div class="card">
+            <div class="cardHead">
+              <div>
+                <h2>Registrations Trend</h2>
+                <p>Monthly registrations based on submitted date.</p>
+              </div>
+              <span class="pill green" id="trendRangePill">Last 6 Months</span>
+            </div>
+            <div class="chartBox">
+              <canvas id="chartTrend" class="chartCanvas"></canvas>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="cardHead">
+              <div>
+                <h2>Verification Status</h2>
+                <p>Distribution of records by status.</p>
+              </div>
+              <span class="pill gold">Operational</span>
+            </div>
+            <div class="chartBox">
+              <canvas id="chartStatus" class="chartCanvas"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="card">
+          <div class="cardHead">
+            <div>
+              <h2>Recent Submissions</h2>
+              <p>Latest submissions from inspectors. Click a row to open Farmer Profile.</p>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+              <button class="btn primary" id="btnOpenRegistry">Open Registry</button>
+            </div>
+          </div>
+
+          <div class="tableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Farmer ID</th>
+                  <th>Farmer</th>
+                  <th>County</th>
+                  <th>Community</th>
+                  <th>Crop</th>
+                  <th>Status</th>
+                  <th>Submitted</th>
+                </tr>
+              </thead>
+              <tbody id="recentBody">
+                <tr><td colspan="7" class="emptyRow">
+                  No records available. Once connected to your API/database, submissions will appear here automatically.
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- REGISTRY -->
+      <section class="view hidden" id="view-registry">
+        <div class="card">
+          <div class="cardHead">
+            <div>
+              <h2>Farmers Registry</h2>
+              <p>Search records, open Farmer Profile, and perform verification actions.</p>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+              <div style="min-width:260px;">
+                <label style="margin:0 0 6px;">Search</label>
+                <input id="fSearch" placeholder="Search Farmer ID, name, phone, county, community..."/>
+              </div>
+              <div style="min-width:180px;">
+                <label style="margin:0 0 6px;">Status</label>
+                <select id="fStatus">
+                  <option value="">All</option>
+                  <option value="Submitted">Submitted</option>
+                  <option value="Under Review">Under Review</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+              </div>
+              <div style="min-width:180px;">
+                <label style="margin:0 0 6px;">County</label>
+                <select id="fCounty"><option value="">All</option></select>
+              </div>
+              <button class="btn ghost" id="btnApplyFilters">Apply</button>
+              <button class="btn" id="btnResetFilters">Reset</button>
+            </div>
+          </div>
+
+          <div class="tableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Farmer ID</th>
+                  <th>Farmer</th>
+                  <th>Phone</th>
+                  <th>County</th>
+                  <th>Community</th>
+                  <th>Crop</th>
+                  <th>Area (ha)</th>
+                  <th>Status</th>
+                  <th>Last Update</th>
+                </tr>
+              </thead>
+              <tbody id="registryBody">
+                <tr><td colspan="9" class="emptyRow">
+                  No records available. Once connected to your API/database, registry records will populate here.
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="cardBody" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between;">
+            <div class="small">
+              Developer hook: set <span class="mono">window.CMIS_API_BASE</span> and call <span class="mono">syncFromApi()</span>, or call <span class="mono">window.setRecords(records)</span>.
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <button class="btn ghost" id="btnImportJson">Import JSON</button>
+              <input type="file" id="fileJson" accept="application/json" style="display:none"/>
+              <button class="btn primary" id="btnSync2">Sync</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- INSPECTIONS -->
+      <section class="view hidden" id="view-inspections">
+        <div class="card">
+          <div class="cardHead">
+            <div>
+              <h2>Inspections</h2>
+              <p>Inspection queue and assignment workflow (connect this view to your inspection endpoints).</p>
+            </div>
+            <span class="pill green">Workflow</span>
+          </div>
+          <div class="cardBody">
+            <div class="muted" style="font-size:13px; line-height:1.6;">
+              This section can show: pending inspection requests, assigned inspector, scheduled date, findings, and review outcome.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- REPORTS -->
+      <section class="view hidden" id="view-reports">
+        <div class="grid2">
+          <div class="card">
+            <div class="cardHead">
+              <div>
+                <h2>Approved Area by County</h2>
+                <p>Computed from approved records.</p>
+              </div>
+              <span class="pill gold">Report</span>
+            </div>
+            <div class="chartBox">
+              <canvas id="chartCounty" class="chartCanvas"></canvas>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="cardHead">
+              <div>
+                <h2>Exports</h2>
+                <p>Connect to export endpoints for CSV/Excel/GeoJSON/PDF profiles.</p>
+              </div>
+              <span class="pill gray">Documents</span>
+            </div>
+            <div class="cardBody" style="display:flex; gap:10px; flex-wrap:wrap;">
+              <button class="btn ghost" onclick="notify('Exports', 'Connect this button to your export endpoints.')">Export CSV</button>
+              <button class="btn ghost" onclick="notify('Exports', 'Connect this button to your export endpoints.')">Export Excel</button>
+              <button class="btn ghost" onclick="notify('Exports', 'Connect this button to your export endpoints.')">Export GeoJSON</button>
+              <button class="btn ghost" onclick="notify('Exports', 'Connect this button to your export endpoints.')">Export PDF Profiles</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section class="view hidden" id="view-settings">
+        <div class="grid2">
+          <div class="card">
+            <div class="cardHead">
+              <div>
+                <h2>User & Roles</h2>
+                <p>Connect to user management and RBAC endpoints.</p>
+              </div>
+              <span class="pill green">Security</span>
+            </div>
+            <div class="cardBody">
+              <div class="muted" style="font-size:13px; line-height:1.6;">
+                Typical: user accounts, role permissions, audit logs, password policy, session control.
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="cardHead">
+              <div>
+                <h2>Form Requirements</h2>
+                <p>Configure mandatory fields for inspector submissions.</p>
+              </div>
+              <span class="pill gold">Policy</span>
+            </div>
+            <div class="cardBody">
+              <label><input type="checkbox" checked/> Require Farmer Name, Gender, Phone</label>
+              <label><input type="checkbox" checked/> Require Polygon Boundary</label>
+              <label><input type="checkbox" checked/> Require Consent</label>
+              <label><input type="checkbox"/> Require GPS Capture</label>
+              <label><input type="checkbox"/> Require ID Proof Upload</label>
+              <div class="sep"></div>
+              <button class="btn primary" onclick="notify('Settings', 'Wire this to your settings API to persist.')">Save Settings</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</section>
+
+<!-- Farmer Profile Drawer -->
+<div class="drawerBackdrop" id="drawerBackdrop"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawerHead">
+    <div>
+      <h3 id="dTitle">Farmer Profile</h3>
+      <div class="sub" id="dSub">—</div>
+    </div>
+    <button class="btn" id="btnCloseDrawer">Close</button>
+  </div>
+
+  <div class="drawerBody">
+
+    <div class="drawerSection">
+      <div class="h">
+        <span>Verification</span>
+        <span id="dStatusPill" class="pill gray">—</span>
+      </div>
+      <div class="b" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+        <button class="btn ghost" id="btnMarkReview">Mark Under Review</button>
+        <button class="btn primary" id="btnApprove">Approve</button>
+        <button class="btn danger" id="btnReject">Reject</button>
+        <span class="pill gray mono" id="dFarmerId">—</span>
+      </div>
+    </div>
+
+    <div class="drawerSection">
+      <div class="h"><span>Identity</span><span class="pill green" id="dInspector">Inspector: —</span></div>
+      <div class="b">
+        <div class="kv">
+          <div><div class="k">Full Name</div><div class="v" id="dName">—</div></div>
+          <div><div class="k">Phone</div><div class="v" id="dPhone">—</div></div>
+          <div><div class="k">Gender</div><div class="v" id="dGender">—</div></div>
+          <div><div class="k">National ID</div><div class="v mono" id="dNatId">—</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="drawerSection">
+      <div class="h"><span>Location</span><span class="pill gray" id="dSubmitted">Submitted: —</span></div>
+      <div class="b">
+        <div class="kv">
+          <div><div class="k">County</div><div class="v" id="dCounty">—</div></div>
+          <div><div class="k">Community</div><div class="v" id="dCommunity">—</div></div>
+          <div><div class="k">GPS Point</div><div class="v mono" id="dGPS">—</div></div>
+          <div><div class="k">Accuracy</div><div class="v" id="dAccuracy">—</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="drawerSection">
+      <div class="h"><span>Farm & Mapping</span><span class="pill ok" id="dArea">Area: —</span></div>
+      <div class="b">
+        <div id="profileMap"></div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+          <span class="pill gray">Crop: <b id="dCrop">—</b></span>
+          <span class="pill gray">Ownership: <b id="dOwner">—</b></span>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+          <button class="btn" id="btnCopyGeo">Copy GeoJSON</button>
+          <button class="btn ghost" id="btnDownloadGeo">Download GeoJSON</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="drawerSection">
+      <div class="h"><span>Attachments</span><span class="pill gray" id="dAttachCount">0 file(s)</span></div>
+      <div class="b">
+        <div class="thumbs" id="dThumbs">
+          <div class="thumb">No attachments uploaded</div>
+        </div>
+        <div class="small" style="margin-top:10px;">
+          Attachments are displayed from record payload (URLs/base64). Click images to open in new tab.
+        </div>
+      </div>
+    </div>
+
+    <div class="drawerSection">
+      <div class="h"><span>Reviewer Notes</span><span class="pill gray">Audit</span></div>
+      <div class="b">
+        <label style="margin-top:0;">Notes / Rejection Reason</label>
+        <textarea id="dNotes" placeholder="Enter review notes here..."></textarea>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+          <button class="btn primary" id="btnSaveNotes">Save Notes</button>
+          <button class="btn" id="btnClearNotes">Clear</button>
+        </div>
+        <div class="small" style="margin-top:8px;">
+          Wire notes to backend so each update stores reviewer, timestamp, and action history.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="drawerFoot">
+    <div class="small" id="dFooterHint">Review map boundary and evidence before approving.</div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn" id="btnPrev">Prev</button>
+      <button class="btn" id="btnNext">Next</button>
+    </div>
+  </div>
+</aside>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <strong id="toastTitle">Notice</strong>
+  <span id="toastMsg">—</span>
+</div>
+
+<script>
+  // ==========================================================
+  // 1) DATA WIRING CONTRACT (Inspector → Admin Panel)
+  // ==========================================================
+  /**
+   * Expected record shape from Inspector form payload (recommended):
+   *
+   * {
+   *   id: "LACRA-FMR-YYYYMMDD-XXXX",        // farmerId
+   *   status: "Submitted" | "Under Review" | "Approved" | "Rejected",
+   *   createdAt: "2026-01-14T10:20:00Z",
+   *   updatedAt: "2026-01-14T10:45:00Z",
+   *   inspector: { id:"u123", name:"Inspector Name" },
+   *
+   *   personal: {
+   *     fullName: "...",
+   *     phone: "...",
+   *     gender: "...",
+   *     nationalId: "...",
+   *     // optional: dob, age, nationality, etc
+   *   },
+   *
+   *   location: {
+   *     county: "...",
+   *     community: "...",
+   *     gps: { lat: 6.315, lng: -10.807 },
+   *     accuracyMeters: 8,
+   *     // optional: district, directions
+   *   },
+   *
+   *   farm: {
+   *     crop: "Cocoa",
+   *     ownership: "Owned",
+   *     farmName: "...",
+   *     // optional: notes, estimatedSize, etc
+   *   },
+   *
+   *   mapping: {
+   *     polygonGeoJSON: { ... },     // Feature or FeatureCollection
+   *     areaHa: 2.34                 // computed at capture-time or computed by server
+   *   },
+   *
+   *   attachments: [
+   *     { type:"farmer_photo", label:"Farmer Photo", url:"https://..." },
+   *     { type:"id_proof", label:"ID Proof", url:"https://..." },
+   *     { type:"farm_photo", label:"Farm Photo", url:"https://..." }
+   *   ],
+   *
+   *   review: {
+   *     notes: "text",
+   *     reviewer: { id:"a1", name:"Admin Name" },
+   *     reviewedAt: "2026-01-14T11:05:00Z"
+   *   }
+   * }
+   */
+
+  // ==========================================================
+  // 2) API ENDPOINTS (your developer will implement)
+  // ==========================================================
+  // Set this in code OR before loading the page:
+  // window.CMIS_API_BASE = "https://your-domain.gov.lr";
+  window.CMIS_API_BASE = window.CMIS_API_BASE || ""; // empty means "not configured"
+
+  // Recommended endpoints:
+  // GET    /api/cmis/farmers                 -> list
+  // GET    /api/cmis/farmers?recent=1        -> recent list
+  // GET    /api/cmis/farmers/:id             -> details
+  // PATCH  /api/cmis/farmers/:id             -> update status/notes
+  // (Use your preferred routing.)
+
+  // ==========================================================
+  // 3) UI STATE + HELPERS
+  // ==========================================================
+  const $ = (id) => document.getElementById(id);
+
+  function notify(title, msg){
+    const t = $('toast');
+    $('toastTitle').textContent = title;
+    $('toastMsg').textContent = msg;
+    t.style.display = 'block';
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(() => t.style.display = 'none', 3200);
+  }
+
+  function fmt(n, d=2){
+    const x = Number(n);
+    if(!isFinite(x)) return (0).toFixed(d);
+    return x.toFixed(d);
+  }
+
+  function safeStr(v){ return (v === null || v === undefined) ? "" : String(v); }
+
+  function toLocalShort(isoLike){
+    if(!isoLike) return "—";
+    // accept ISO or "YYYY-MM-DD HH:mm"
+    const asDate = new Date(isoLike);
+    if(!isNaN(asDate.getTime())){
+      const y = asDate.getFullYear();
+      const m = String(asDate.getMonth()+1).padStart(2,'0');
+      const d = String(asDate.getDate()).padStart(2,'0');
+      const hh = String(asDate.getHours()).padStart(2,'0');
+      const mm = String(asDate.getMinutes()).padStart(2,'0');
+      return `${y}-${m}-${d} ${hh}:${mm}`;
+    }
+    return isoLike;
+  }
+
+  function statusTag(status){
+    const cls =
+      status === "Approved" ? "approved" :
+      status === "Rejected" ? "rejected" :
+      status === "Under Review" ? "review" : "submitted";
+    return `<span class="tag ${cls}">${status || "Submitted"}</span>`;
+  }
+
+  // ==========================================================
+  // 4) NORMALIZE RECORDS (supports your inspector form structure)
+  // ==========================================================
+  function normalizeRecord(r){
+    // Accept both "recommended" shape (above) and alternative keys
+    const farmerId = r.id || r.farmerId || r.farmer_id || r.code || "";
+    const status = r.status || r.verificationStatus || "Submitted";
+    const createdAt = r.createdAt || r.created_at || r.submittedAt || r.submitted_at || r.dateSubmitted || null;
+    const updatedAt = r.updatedAt || r.updated_at || r.lastUpdate || createdAt || null;
+
+    const inspectorName =
+      (r.inspector && (r.inspector.name || r.inspector.fullName)) ||
+      r.inspectorName || r.inspector_name || r.capturedBy || "—";
+
+    const personal = r.personal || r.personalData || r.personal_data || {};
+    const location = r.location || r.locationData || r.location_data || {};
+    const farm = r.farm || r.farmData || r.farm_data || {};
+
+    // GPS
+    const gps = location.gps || location.gpsPoint || location.gps_point || {
+      lat: location.lat || location.latitude,
+      lng: location.lng || location.longitude
+    };
+
+    // Mapping
+    const mapping = r.mapping || r.map || r.boundary || {};
+    const poly = mapping.polygonGeoJSON || mapping.geojson || mapping.polygon || mapping.boundaryGeoJSON || null;
+    const areaHa = mapping.areaHa ?? mapping.area_ha ?? mapping.area ?? null;
+
+    const attachments = r.attachments || r.files || r.evidence || [];
+    const review = r.review || r.reviewer || {};
+
+    return {
+      farmerId,
+      status,
+      createdAt,
+      updatedAt,
+      inspectorName,
+
+      personal: {
+        fullName: personal.fullName || personal.name || personal.full_name || "—",
+        phone: personal.phone || personal.phoneNumber || personal.phone_number || "—",
+        gender: personal.gender || "—",
+        nationalId: personal.nationalId || personal.national_id || personal.idNumber || personal.id_number || "—"
+      },
+
+      location: {
+        county: location.county || "—",
+        community: location.community || location.village || "—",
+        gps: (gps && isFinite(Number(gps.lat)) && isFinite(Number(gps.lng))) ? { lat:Number(gps.lat), lng:Number(gps.lng) } : null,
+        accuracyMeters: location.accuracyMeters ?? location.accuracy_m ?? location.gpsAccuracy ?? null
+      },
+
+      farm: {
+        crop: farm.crop || farm.primaryCrop || farm.primary_crop || "—",
+        ownership: farm.ownership || farm.ownershipType || farm.ownership_type || "—",
+        farmName: farm.farmName || farm.name || farm.farm_name || "—"
+      },
+
+      mapping: {
+        polygonGeoJSON: poly,
+        areaHa: (areaHa !== null && areaHa !== undefined) ? Number(areaHa) : null
+      },
+
+      attachments: Array.isArray(attachments) ? attachments.map(a => ({
+        type: a.type || a.kind || "file",
+        label: a.label || a.name || a.filename || "Attachment",
+        url: a.url || a.link || a.path || null,
+        // optional base64 data url:
+        dataUrl: a.dataUrl || a.data_url || null
+      })) : [],
+
+      review: {
+        notes: review.notes || review.comment || review.reason || "",
+        reviewerName: (review.reviewer && (review.reviewer.name || review.reviewer.fullName)) || review.reviewerName || "",
+        reviewedAt: review.reviewedAt || review.reviewed_at || null
+      }
+    };
+  }
+
+  // ==========================================================
+  // 5) RECORD STORE
+  // ==========================================================
+  let records = [];           // normalized records
+  let openedIndex = -1;       // for drawer navigation
+
+  // Public hook for developer:
+  // window.setRecords([{...}, {...}])
+  window.setRecords = function(rawRecords){
+    if(!Array.isArray(rawRecords)) throw new Error("setRecords expects an array");
+    records = rawRecords.map(normalizeRecord).filter(r => r.farmerId);
+    refreshAll();
+    notify("Data Loaded", "Records have been loaded into the dashboard.");
+  };
+
+  // ==========================================================
+  // 6) AUTH SESSION
+  // ==========================================================
+  const SESSION_KEY = "lacra_cmis_admin_session_v2";
+  function setSession(session){ localStorage.setItem(SESSION_KEY, JSON.stringify(session)); }
+  function getSession(){ try { return JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); } catch { return null; } }
+  function clearSession(){ localStorage.removeItem(SESSION_KEY); }
+
+  function showApp(){
+    $('loginPage').classList.add('hidden');
+    $('app').classList.remove('hidden');
+  }
+  function showLogin(){
+    $('app').classList.add('hidden');
+    $('loginPage').classList.remove('hidden');
+  }
+
+  // ==========================================================
+  // 7) NAVIGATION
+  // ==========================================================
+  const viewMeta = {
+    overview:{ title:"Overview", sub:"Institutional performance snapshot and operational summary." },
+    registry:{ title:"Farmers Registry", sub:"Search records, open Farmer Profile, and verify submissions." },
+    inspections:{ title:"Inspections", sub:"Inspection queue, assignments, and review workflow." },
+    reports:{ title:"Reports", sub:"County analytics and exports." },
+    settings:{ title:"Settings", sub:"Users, roles, and policy configuration." }
+  };
+
+  function setView(name){
+    document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+    $('view-' + name).classList.remove('hidden');
+
+    document.querySelectorAll('.navBtn').forEach(b => b.classList.remove('active'));
+    document.querySelector('.navBtn[data-view="' + name + '"]')?.classList.add('active');
+
+    $('viewTitle').textContent = viewMeta[name]?.title || "Admin";
+    $('viewSub').textContent = viewMeta[name]?.sub || "";
+  }
+
+  document.querySelectorAll('.navBtn').forEach(btn => {
+    btn.addEventListener('click', () => setView(btn.dataset.view));
+  });
+
+  $('btnOpenRegistry').addEventListener('click', () => setView('registry'));
+
+  // ==========================================================
+  // 8) CHARTS (auto-fill from records)
+  // ==========================================================
+  let chartTrend, chartStatus, chartCounty;
+
+  function buildCharts(){
+    // Trend (last 6 months)
+    chartTrend = new Chart(document.getElementById('chartTrend'), {
+      type: 'line',
+      data: { labels: [], datasets: [{ label:"Registrations", data: [], tension:0.35, fill:true }] },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:true } },
+        scales:{ x:{ grid:{ display:false } }, y:{ beginAtZero:true } }
+      }
+    });
+
+    // Status
+    chartStatus = new Chart(document.getElementById('chartStatus'), {
+      type: 'doughnut',
+      data: { labels:["Submitted","Under Review","Approved","Rejected"], datasets:[{ label:"Records", data:[0,0,0,0] }] },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ position:'bottom' } },
+        cutout:'62%'
+      }
+    });
+
+    // County (Approved area by county)
+    chartCounty = new Chart(document.getElementById('chartCounty'), {
+      type:'bar',
+      data: { labels: [], datasets:[{ label:"Approved Area (ha)", data: [] }] },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:true } },
+        scales:{ x:{ grid:{ display:false } }, y:{ beginAtZero:true } }
+      }
+    });
+  }
+
+  function monthKey(d){
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    return `${y}-${m}`;
+  }
+  function monthLabelFromKey(key){
+    // key "YYYY-MM"
+    const [y,m] = key.split("-");
+    const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const mi = Math.max(1, Math.min(12, Number(m))) - 1;
+    return `${monthNames[mi]} ${y}`;
+  }
+  function lastNMonthKeys(n=6){
+    const now = new Date();
+    const keys = [];
+    for(let i=n-1; i>=0; i--){
+      const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+      keys.push(monthKey(d));
+    }
+    return keys;
+  }
+
+  function computeKpisAndCharts(){
+    // KPIs
+    const totalFarmers = records.length;
+    const farmsMapped = records.filter(r => !!r.mapping?.polygonGeoJSON).length;
+    const pending = records.filter(r => ["Submitted","Under Review"].includes(r.status)).length;
+    const approvedArea = records
+      .filter(r => r.status === "Approved")
+      .reduce((sum, r) => sum + (Number(r.mapping?.areaHa)||0), 0);
+
+    $('kpiFarmers').textContent = String(totalFarmers);
+    $('kpiFarms').textContent = String(farmsMapped);
+    $('kpiPending').textContent = String(pending);
+    $('kpiArea').textContent = fmt(approvedArea, 2);
+
+    // Trend: registrations per month (by createdAt/submittedAt)
+    const keys = lastNMonthKeys(6);
+    const counts = Object.fromEntries(keys.map(k => [k, 0]));
+    for(const r of records){
+      const dt = r.createdAt ? new Date(r.createdAt) : null;
+      if(dt && !isNaN(dt.getTime())){
+        const k = monthKey(dt);
+        if(counts[k] !== undefined) counts[k] += 1;
+      }
+    }
+    chartTrend.data.labels = keys.map(monthLabelFromKey);
+    chartTrend.data.datasets[0].data = keys.map(k => counts[k]);
+    chartTrend.update();
+
+    // Status distribution
+    const statusCounts = { "Submitted":0, "Under Review":0, "Approved":0, "Rejected":0 };
+    for(const r of records){
+      if(statusCounts[r.status] === undefined) statusCounts["Submitted"] += 1;
+      else statusCounts[r.status] += 1;
+    }
+    chartStatus.data.datasets[0].data = [
+      statusCounts["Submitted"], statusCounts["Under Review"], statusCounts["Approved"], statusCounts["Rejected"]
+    ];
+    chartStatus.update();
+
+    // Approved area by county
+    const countyArea = {};
+    for(const r of records){
+      if(r.status !== "Approved") continue;
+      const c = r.location?.county || "Unknown";
+      countyArea[c] = (countyArea[c]||0) + (Number(r.mapping?.areaHa)||0);
+    }
+    const labels = Object.keys(countyArea).sort((a,b) => countyArea[b] - countyArea[a]).slice(0, 10);
+    chartCounty.data.labels = labels;
+    chartCounty.data.datasets[0].data = labels.map(l => Number(countyArea[l]||0));
+    chartCounty.update();
+  }
+
+  // ==========================================================
+  // 9) TABLE RENDERING (Recent + Registry)
+  // ==========================================================
+  function fillCountyFilter(){
+    const sel = $('fCounty');
+    const counties = Array.from(new Set(records.map(r => r.location?.county).filter(Boolean))).sort();
+    sel.innerHTML = `<option value="">All</option>` + counties.map(c => `<option value="${c}">${c}</option>`).join("");
+  }
+
+  function getFilteredRecords(){
+    const q = (safeStr($('fSearch').value).trim().toLowerCase());
+    const st = $('fStatus').value || "";
+    const co = $('fCounty').value || "";
+
+    return records.filter(r => {
+      const hay = [
+        r.farmerId,
+        r.personal?.fullName,
+        r.personal?.phone,
+        r.location?.county,
+        r.location?.community,
+        r.farm?.crop,
+        r.inspectorName
+      ].join(" ").toLowerCase();
+
+      if(q && !hay.includes(q)) return false;
+      if(st && r.status !== st) return false;
+      if(co && r.location?.county !== co) return false;
+      return true;
+    });
+  }
+
+  function renderRecent(){
+    const body = $('recentBody');
+    if(records.length === 0){
+      body.innerHTML = `<tr><td colspan="7" class="emptyRow">
+        No records available. Once connected to your API/database, submissions will appear here automatically.
+      </td></tr>`;
+      return;
+    }
+
+    const rows = records.slice()
+      .sort((a,b) => safeStr(b.updatedAt).localeCompare(safeStr(a.updatedAt)))
+      .slice(0, 8);
+
+    body.innerHTML = "";
+    for(const r of rows){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="mono"><b>${r.farmerId}</b></td>
+        <td>${r.personal.fullName}</td>
+        <td>${r.location.county}</td>
+        <td>${r.location.community}</td>
+        <td>${r.farm.crop}</td>
+        <td>${statusTag(r.status)}</td>
+        <td>${toLocalShort(r.createdAt)}</td>
+      `;
+      tr.addEventListener('click', () => openDrawerById(r.farmerId));
+      body.appendChild(tr);
+    }
+  }
+
+  function renderRegistry(){
+    const body = $('registryBody');
+    if(records.length === 0){
+      body.innerHTML = `<tr><td colspan="9" class="emptyRow">
+        No records available. Once connected to your API/database, registry records will populate here.
+      </td></tr>`;
+      return;
+    }
+
+    const rows = getFilteredRecords().slice()
+      .sort((a,b) => safeStr(b.updatedAt).localeCompare(safeStr(a.updatedAt)));
+
+    body.innerHTML = "";
+    for(const r of rows){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="mono"><b>${r.farmerId}</b></td>
+        <td>${r.personal.fullName}</td>
+        <td>${r.personal.phone}</td>
+        <td>${r.location.county}</td>
+        <td>${r.location.community}</td>
+        <td>${r.farm.crop}</td>
+        <td>${r.mapping?.areaHa != null ? fmt(r.mapping.areaHa, 4) : "—"}</td>
+        <td>${statusTag(r.status)}</td>
+        <td>${toLocalShort(r.updatedAt)}</td>
+      `;
+      tr.addEventListener('click', () => openDrawerById(r.farmerId));
+      body.appendChild(tr);
+    }
+
+    fillCountyFilter();
+  }
+
+  // ==========================================================
+  // 10) FARMER PROFILE DRAWER (Map + Polygon + Attachments + Approve/Reject)
+  // ==========================================================
+  const backdrop = $('drawerBackdrop');
+  const drawer = $('drawer');
+
+  let profileMap = null;
+  let polyLayer = null;
+  let gpsMarker = null;
+
+  function ensureProfileMap(){
+    if(profileMap) return;
+    profileMap = L.map('profileMap', { zoomControl:true }).setView([6.3156, -10.8074], 11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:20, attribution:'&copy; OpenStreetMap' }).addTo(profileMap);
+  }
+
+  function setDrawerStatus(status){
+    const pill = $('dStatusPill');
+    pill.className = "pill gray";
+    pill.textContent = status || "Submitted";
+    if(status === "Approved") pill.className = "pill ok";
+    else if(status === "Rejected") pill.className = "pill bad";
+    else if(status === "Under Review") pill.className = "pill warn";
+    else pill.className = "pill gray";
+  }
+
+  function openDrawerById(id){
+    const idx = records.findIndex(r => r.farmerId === id);
+    if(idx < 0) return;
+    openedIndex = idx;
+    openDrawer(records[idx]);
+  }
+
+  function clearMapLayers(){
+    if(polyLayer){ profileMap.removeLayer(polyLayer); polyLayer = null; }
+    if(gpsMarker){ profileMap.removeLayer(gpsMarker); gpsMarker = null; }
+  }
+
+  function toLeafletGeoJSON(polygonGeoJSON){
+    // Accept Feature / FeatureCollection / Geometry
+    if(!polygonGeoJSON) return null;
+    if(polygonGeoJSON.type === "Feature" || polygonGeoJSON.type === "FeatureCollection") return polygonGeoJSON;
+    // Geometry object
+    return { type:"Feature", properties:{}, geometry: polygonGeoJSON };
+  }
+
+  function renderAttachments(att){
+    const wrap = $('dThumbs');
+    const list = Array.isArray(att) ? att.filter(x => x && (x.url || x.dataUrl)) : [];
+    $('dAttachCount').textContent = `${list.length} file(s)`;
+
+    if(list.length === 0){
+      wrap.innerHTML = `<div class="thumb">No attachments uploaded</div>`;
+      return;
+    }
+
+    wrap.innerHTML = "";
+    for(const a of list.slice(0, 12)){
+      const src = a.url || a.dataUrl;
+      const label = a.label || "Attachment";
+      const div = document.createElement('div');
+      div.className = "thumb";
+      div.innerHTML = `
+        <img src="${src}" alt="${label}" onerror="this.remove(); this.parentElement.textContent='${label}';"/>
+        <div class="cap">${label}</div>
+      `;
+      div.addEventListener('click', () => window.open(src, '_blank'));
+      wrap.appendChild(div);
+    }
+  }
+
+  function openDrawer(r){
+    $('dFarmerId').textContent = r.farmerId;
+    $('dTitle').textContent = r.personal.fullName;
+    $('dSub').textContent = `${r.location.county} • ${r.location.community}`;
+    $('dInspector').textContent = `Inspector: ${r.inspectorName}`;
+    $('dSubmitted').textContent = `Submitted: ${toLocalShort(r.createdAt)}`;
+    setDrawerStatus(r.status);
+
+    $('dName').textContent = r.personal.fullName;
+    $('dPhone').textContent = r.personal.phone;
+    $('dGender').textContent = r.personal.gender;
+    $('dNatId').textContent = r.personal.nationalId || "—";
+
+    $('dCounty').textContent = r.location.county;
+    $('dCommunity').textContent = r.location.community;
+    $('dGPS').textContent = r.location.gps ? `${r.location.gps.lat.toFixed(6)}, ${r.location.gps.lng.toFixed(6)}` : "—";
+    $('dAccuracy').textContent = (r.location.accuracyMeters != null) ? `${r.location.accuracyMeters} m` : "—";
+
+    $('dCrop').textContent = r.farm.crop;
+    $('dOwner').textContent = r.farm.ownership;
+    $('dArea').textContent = `Area: ${r.mapping?.areaHa != null ? fmt(r.mapping.areaHa, 4) : "—"} ha`;
+
+    $('dNotes').value = r.review?.notes || "";
+
+    // attachments
+    renderAttachments(r.attachments);
+
+    // map
+    ensureProfileMap();
+    setTimeout(() => profileMap.invalidateSize(), 80);
+
+    clearMapLayers();
+
+    if(r.location?.gps){
+      gpsMarker = L.marker([r.location.gps.lat, r.location.gps.lng]).addTo(profileMap);
+    }
+
+    const gj = toLeafletGeoJSON(r.mapping?.polygonGeoJSON);
+    if(gj){
+      polyLayer = L.geoJSON(gj, { style:{ weight:2, color:"#0b7a33" } }).addTo(profileMap);
+      const b = polyLayer.getBounds();
+      if(b && b.isValid()) profileMap.fitBounds(b, { padding:[18,18] });
+      else if(r.location?.gps) profileMap.setView([r.location.gps.lat, r.location.gps.lng], 16);
+    }else{
+      if(r.location?.gps) profileMap.setView([r.location.gps.lat, r.location.gps.lng], 16);
+    }
+
+    // open drawer
+    backdrop.style.display = "block";
+    drawer.classList.add('open');
+  }
+
+  function closeDrawer(){
+    drawer.classList.remove('open');
+    backdrop.style.display = "none";
+  }
+
+  $('btnCloseDrawer').addEventListener('click', closeDrawer);
+  backdrop.addEventListener('click', closeDrawer);
+
+  $('btnPrev').addEventListener('click', () => {
+    if(openedIndex <= 0) return notify("Navigation", "This is the first record.");
+    openedIndex--;
+    openDrawer(records[openedIndex]);
+  });
+  $('btnNext').addEventListener('click', () => {
+    if(openedIndex >= records.length - 1) return notify("Navigation", "This is the last record.");
+    openedIndex++;
+    openDrawer(records[openedIndex]);
+  });
+
+  // Copy/Download GeoJSON
+  function currentRecord(){
+    const id = $('dFarmerId').textContent;
+    return records.find(x => x.farmerId === id) || null;
+  }
+
+  $('btnCopyGeo').addEventListener('click', async () => {
+    const r = currentRecord();
+    if(!r) return;
+    const gj = r.mapping?.polygonGeoJSON;
+    if(!gj) return notify("GeoJSON", "No polygon found for this record.");
+    const text = JSON.stringify(gj, null, 2);
+    try{
+      await navigator.clipboard.writeText(text);
+      notify("Copied", "Polygon GeoJSON copied to clipboard.");
+    }catch{
+      notify("Copy Failed", "Clipboard blocked by browser. Use Download GeoJSON.");
+    }
+  });
+
+  $('btnDownloadGeo').addEventListener('click', () => {
+    const r = currentRecord();
+    if(!r) return;
+    const gj = r.mapping?.polygonGeoJSON;
+    if(!gj) return notify("GeoJSON", "No polygon found for this record.");
+
+    const blob = new Blob([JSON.stringify(gj, null, 2)], {type:"application/geo+json"});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${r.farmerId}_polygon.geojson`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  // Approve/Reject/Under Review + Notes
+  function updateRecordLocal(id, patch){
+    const idx = records.findIndex(r => r.farmerId === id);
+    if(idx < 0) return;
+    records[idx] = { ...records[idx], ...patch, updatedAt: new Date().toISOString() };
+  }
+
+  async function patchToApi(id, payload){
+    if(!window.CMIS_API_BASE) return; // no api base set
+    const url = `${window.CMIS_API_BASE}/api/cmis/farmers/${encodeURIComponent(id)}`;
+    const res = await fetch(url, {
+      method:"PATCH",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify(payload)
+    });
+    if(!res.ok){
+      const txt = await res.text().catch(()=> "");
+      throw new Error(`PATCH failed: ${res.status} ${txt}`);
+    }
+    return res.json().catch(()=> ({}));
+  }
+
+  async function setStatus(newStatus){
+    const r = currentRecord();
+    if(!r) return;
+    const id = r.farmerId;
+
+    // optimistic update
+    updateRecordLocal(id, { status: newStatus });
+    setDrawerStatus(newStatus);
+    renderRecent();
+    renderRegistry();
+    computeKpisAndCharts();
+
+    // send to API if configured
+    try{
+      await patchToApi(id, { status: newStatus });
+      notify("Status Updated", `${id} set to "${newStatus}".`);
+    }catch(err){
+      notify("Sync Notice", `Status updated locally. Connect API to persist. (${err.message})`);
+    }
+  }
+
+  $('btnMarkReview').addEventListener('click', () => setStatus("Under Review"));
+  $('btnApprove').addEventListener('click', () => setStatus("Approved"));
+  $('btnReject').addEventListener('click', () => setStatus("Rejected"));
+
+  $('btnSaveNotes').addEventListener('click', async () => {
+    const r = currentRecord();
+    if(!r) return;
+    const id = r.farmerId;
+    const notes = $('dNotes').value;
+
+    // optimistic
+    updateRecordLocal(id, { review: { ...r.review, notes } });
+    computeKpisAndCharts();
+    notify("Notes Saved", "Reviewer notes saved.");
+
+    try{
+      await patchToApi(id, { review: { notes } });
+    }catch(err){
+      // keep local
+      notify("Sync Notice", `Notes saved locally. Connect API to persist. (${err.message})`);
+    }
+  });
+
+  $('btnClearNotes').addEventListener('click', () => { $('dNotes').value = ""; });
+
+  // ==========================================================
+  // 11) API SYNC (auto-fill dashboard & tables once API is connected)
+  // ==========================================================
+  async function fetchJson(url){
+    const res = await fetch(url, { headers: { "Accept":"application/json" }});
+    if(!res.ok) throw new Error(`GET ${res.status}`);
+    return res.json();
+  }
+
+  async function syncFromApi(){
+    if(!window.CMIS_API_BASE){
+      notify("Sync", "Set window.CMIS_API_BASE to your backend base URL to enable sync.");
+      return;
+    }
+    try{
+      const url = `${window.CMIS_API_BASE}/api/cmis/farmers`;
+      const raw = await fetchJson(url);
+      // Accept {data:[...]} or [...]
+      const list = Array.isArray(raw) ? raw : (raw.data || []);
+      window.setRecords(list);
+      notify("Sync Complete", "Dashboard updated from server.");
+    }catch(err){
+      notify("Sync Failed", `Could not sync from API. (${err.message})`);
+    }
+  }
+
+  window.syncFromApi = syncFromApi; // developer hook
+
+  $('btnSync').addEventListener('click', syncFromApi);
+  $('btnSync2').addEventListener('click', syncFromApi);
+
+  // ==========================================================
+  // 12) FILTERS + JSON IMPORT
+  // ==========================================================
+  function refreshAll(){
+    renderRecent();
+    renderRegistry();
+    fillCountyFilter();
+    computeKpisAndCharts();
+  }
+
+  $('btnApplyFilters').addEventListener('click', renderRegistry);
+  $('btnResetFilters').addEventListener('click', () => {
+    $('fSearch').value = "";
+    $('fStatus').value = "";
+    $('fCounty').value = "";
+    renderRegistry();
+    notify("Filters", "Filters reset.");
+  });
+
+  $('fSearch').addEventListener('input', renderRegistry);
+  $('fStatus').addEventListener('change', renderRegistry);
+  $('fCounty').addEventListener('change', renderRegistry);
+
+  $('btnImportJson').addEventListener('click', () => $('fileJson').click());
+  $('fileJson').addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if(!file) return;
+    try{
+      const text = await file.text();
+      const json = JSON.parse(text);
+      const list = Array.isArray(json) ? json : (json.data || json.records || []);
+      window.setRecords(list);
+      notify("Import Complete", "Records imported successfully.");
+      setView('overview');
+    }catch(err){
+      notify("Import Failed", `Invalid JSON file. (${err.message})`);
+    }finally{
+      e.target.value = "";
+    }
+  });
+
+  // ==========================================================
+  // 13) SIDEBAR DARK VARIANT TOGGLE
+  // ==========================================================
+  const SIDEBAR_THEME_KEY = "lacra_sidebar_theme_v1"; // "dark" or "light"
+  function applySidebarTheme(theme){
+    if(theme === "dark") document.body.classList.add("dark-sidebar");
+    else document.body.classList.remove("dark-sidebar");
+    localStorage.setItem(SIDEBAR_THEME_KEY, theme);
+  }
+  function toggleSidebarTheme(){
+    const current = localStorage.getItem(SIDEBAR_THEME_KEY) || "dark";
+    applySidebarTheme(current === "dark" ? "light" : "dark");
+    notify("Theme", `Sidebar set to ${localStorage.getItem(SIDEBAR_THEME_KEY)}.`);
+  }
+  $('btnToggleSidebar').addEventListener('click', toggleSidebarTheme);
+
+  // ==========================================================
+  // 14) LOGIN + STARTUP
+  // ==========================================================
+  $('btnLogin').addEventListener('click', () => {
+    const user = $('loginUser').value.trim() || "admin@lacra.gov.lr";
+    const role = $('loginRole').value;
+    setSession({ user, role, signedInAt: new Date().toISOString() });
+
+    $('rolePill').textContent = "Role: " + role;
+    $('sessionPill').textContent = user;
+
+    showApp();
+    setView('overview');
+
+    // If API is configured, attempt sync
+    if(window.CMIS_API_BASE) syncFromApi();
+    else refreshAll();
+
+    notify("Welcome", "Signed in successfully.");
+  });
+
+  $('btnForgot').addEventListener('click', () => {
+    notify("Password Recovery", "Connect this button to your password recovery flow.");
+  });
+
+  $('btnLogout').addEventListener('click', () => {
+    clearSession();
+    showLogin();
+    notify("Signed out", "You have been logged out.");
+  });
+
+  // Initialize
+  (function init(){
+    buildCharts();
+
+    // default dark sidebar for premium look
+    applySidebarTheme(localStorage.getItem(SIDEBAR_THEME_KEY) || "dark");
+
+    const session = getSession();
+    if(session){
+      $('rolePill').textContent = "Role: " + (session.role || "Admin");
+      $('sessionPill').textContent = session.user || "admin@lacra.gov.lr";
+      showApp();
+      setView('overview');
+
+      // Sync if possible; otherwise show empty with proper messages
+      if(window.CMIS_API_BASE) syncFromApi();
+      else refreshAll();
+    }else{
+      showLogin();
+    }
+  })();
+</script>
+
+</body>
+</html>

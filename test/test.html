@@ -1,0 +1,1301 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Farm Mapping CMS • Admin Panel (Demo)</title>
+
+  <!-- Leaflet (map viewer) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <style>
+    :root{
+      --green:#0b7a33;
+      --green2:#16a34a;
+      --bg:#f6fbf7;
+      --card:#ffffff;
+      --text:#0f172a;
+      --muted:#475569;
+      --border:#dbe7dd;
+      --shadow: 0 10px 30px rgba(15, 23, 42, .08);
+      --radius:16px;
+      --radius2:14px;
+      --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:var(--font);
+      color:var(--text);
+      background:
+        radial-gradient(1000px 500px at 10% 0%, rgba(22,163,74,.12), transparent 60%),
+        radial-gradient(1000px 500px at 90% 0%, rgba(11,122,51,.10), transparent 60%),
+        var(--bg);
+    }
+
+    /* Shell */
+    .shell{
+      display:grid;
+      grid-template-columns: 270px 1fr;
+      min-height:100vh;
+    }
+    @media (max-width: 1050px){
+      .shell{grid-template-columns: 1fr;}
+    }
+
+    /* Sidebar */
+    .sidebar{
+      position:sticky; top:0; height:100vh;
+      padding:14px;
+      background:#fff;
+      border-right:1px solid var(--border);
+      display:flex; flex-direction:column; gap:12px;
+    }
+    @media (max-width: 1050px){
+      .sidebar{position:relative; height:auto; border-right:none; border-bottom:1px solid var(--border);}
+    }
+    .brand{
+      display:flex; gap:10px; align-items:center;
+      padding:10px;
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, rgba(22,163,74,.10), rgba(11,122,51,.06));
+      box-shadow: var(--shadow);
+    }
+    .logo{
+      width:42px;height:42px;border-radius:14px;
+      background: radial-gradient(circle at 30% 25%, rgba(34,197,94,.92), rgba(11,122,51,.65) 55%, rgba(255,255,255,.30) 78%);
+      border:1px solid rgba(11,122,51,.22);
+      flex:0 0 auto;
+    }
+    .brand h1{margin:0; font-size:14px; font-weight:950; line-height:1.1}
+    .brand p{margin:4px 0 0; font-size:12px; color:var(--muted)}
+    .navTitle{
+      margin:6px 6px 0;
+      font-size:11px;
+      letter-spacing:.12em;
+      color:#64748b;
+      font-weight:950;
+      text-transform:uppercase;
+    }
+    .nav{
+      display:flex; flex-direction:column; gap:8px;
+      flex:1 1 auto;
+      overflow:auto;
+      padding-right:2px;
+    }
+    .navBtn{
+      width:100%;
+      text-align:left;
+      border:1px solid var(--border);
+      background:#fff;
+      border-radius: 14px;
+      padding:10px 12px;
+      cursor:pointer;
+      transition:.15s ease;
+      display:flex; gap:10px; align-items:flex-start;
+    }
+    .navBtn:hover{background: rgba(11,122,51,.03); border-color: rgba(11,122,51,.22);}
+    .navBtn.active{
+      border-color: rgba(11,122,51,.35);
+      box-shadow: 0 10px 20px rgba(11,122,51,.10);
+      background: rgba(11,122,51,.04);
+    }
+    .navIcon{
+      width:26px;height:26px;border-radius:999px;
+      display:grid; place-items:center;
+      background: rgba(11,122,51,.08);
+      border:1px solid rgba(11,122,51,.16);
+      color: var(--green);
+      font-weight:950;
+      flex:0 0 auto;
+      margin-top:1px;
+    }
+    .navBtn .t{font-weight:950; font-size:13px}
+    .navBtn .s{color:var(--muted); font-size:12px; margin-top:2px; line-height:1.25}
+    .sideFoot{
+      border-top:1px solid var(--border);
+      padding-top:12px;
+      display:flex; gap:10px; flex-wrap:wrap;
+    }
+
+    /* Main */
+    .main{min-width:0; display:flex; flex-direction:column;}
+    .topbar{
+      position:sticky; top:0; z-index:10;
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(10px);
+      border-bottom:1px solid var(--border);
+      padding:12px 16px;
+      display:flex; gap:12px; align-items:center; justify-content:space-between;
+      flex-wrap:wrap;
+    }
+    .topLeft .title{font-weight:950; font-size:16px}
+    .topLeft .sub{margin-top:3px; color:var(--muted); font-size:12px}
+    .topRight{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+
+    .pill{
+      display:inline-flex; gap:8px; align-items:center;
+      padding:6px 10px;
+      border-radius:999px;
+      background: rgba(11,122,51,.08);
+      border:1px solid rgba(11,122,51,.18);
+      color: var(--green);
+      font-weight:950;
+      font-size:12px;
+      white-space:nowrap;
+    }
+    .pill.gray{background:#f1f5f9; border-color:#e2e8f0; color:#334155;}
+    .pill.warn{background: rgba(245,158,11,.12); border-color: rgba(245,158,11,.25); color:#92400e;}
+    .pill.bad{background: rgba(239,68,68,.10); border-color: rgba(239,68,68,.22); color:#991b1b;}
+    .pill.ok{background: rgba(34,197,94,.12); border-color: rgba(34,197,94,.22); color:#065f46;}
+
+    .btn{
+      appearance:none;
+      border:1px solid var(--border);
+      background:#fff;
+      color:var(--text);
+      padding:10px 12px;
+      border-radius: 14px;
+      cursor:pointer;
+      font-weight:900;
+      font-size:13px;
+      transition:.15s ease;
+      display:inline-flex; gap:8px; align-items:center; justify-content:center;
+    }
+    .btn:hover{transform: translateY(-1px); box-shadow: 0 8px 16px rgba(15, 23, 42, .08);}
+    .btn.primary{
+      background: linear-gradient(135deg, var(--green), var(--green2));
+      color:#fff;
+      border-color: rgba(11,122,51,.28);
+    }
+    .btn.ghost{
+      background: rgba(11,122,51,.05);
+      border-color: rgba(11,122,51,.18);
+      color: var(--green);
+    }
+    .btn.danger{
+      background: rgba(239,68,68,.06);
+      border-color: rgba(239,68,68,.20);
+      color: #b91c1c;
+    }
+
+    .wrap{padding:16px;}
+    .gridCards{
+      display:grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap:12px;
+    }
+    @media (max-width: 1100px){ .gridCards{grid-template-columns: repeat(2, minmax(0, 1fr));} }
+    @media (max-width: 650px){ .gridCards{grid-template-columns: 1fr;} }
+
+    .card{
+      background: var(--card);
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .metric{
+      padding:14px;
+      display:flex; justify-content:space-between; align-items:flex-start; gap:10px;
+    }
+    .metric .k{color:var(--muted); font-size:12px; font-weight:850}
+    .metric .v{font-size:22px; font-weight:950; margin-top:6px}
+    .metric .trend{font-size:12px; color:var(--muted)}
+    .metric .badge{
+      width:38px;height:38px;border-radius:14px;
+      display:grid; place-items:center;
+      background: rgba(11,122,51,.08);
+      border:1px solid rgba(11,122,51,.16);
+      color: var(--green);
+      font-weight:950;
+      flex:0 0 auto;
+    }
+
+    /* Table area */
+    .panelHead{
+      padding:14px 16px;
+      border-bottom:1px solid var(--border);
+      background: linear-gradient(180deg, rgba(11,122,51,.06), transparent);
+      display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;
+    }
+    .panelHead h2{margin:0; font-size:16px; font-weight:950;}
+    .panelHead p{margin:6px 0 0; font-size:13px; color:var(--muted); line-height:1.35;}
+    .filters{
+      display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;
+    }
+
+    label{display:block; font-size:12px; font-weight:900; color:#334155; margin:0 0 6px;}
+    input, select, textarea{
+      width:100%;
+      padding:11px 12px;
+      border-radius: 14px;
+      border:1px solid var(--border);
+      background:#fff;
+      color:var(--text);
+      outline:none;
+      transition:.15s ease;
+      font-size:13px;
+    }
+    input:focus, select:focus, textarea:focus{
+      border-color: rgba(11,122,51,.45);
+      box-shadow: 0 0 0 4px rgba(11,122,51,.12);
+    }
+    .filterItem{min-width: 180px;}
+    .filterItem.wide{min-width: 260px;}
+
+    .tableWrap{overflow:auto;}
+    table{width:100%; border-collapse:separate; border-spacing:0;}
+    thead th{
+      position:sticky; top:0; z-index:2;
+      background:#fff;
+      border-bottom:1px solid var(--border);
+      padding:12px 12px;
+      text-align:left;
+      font-size:12px;
+      letter-spacing:.04em;
+      color:#334155;
+      font-weight:950;
+      white-space:nowrap;
+    }
+    tbody td{
+      border-bottom:1px solid var(--border);
+      padding:12px 12px;
+      font-size:13px;
+      white-space:nowrap;
+      vertical-align:middle;
+    }
+    tbody tr{background:#fff; cursor:pointer;}
+    tbody tr:hover{background: rgba(11,122,51,.03);}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size:12px;}
+    .actions{display:flex; gap:8px; align-items:center;}
+    .tag{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:#fff;
+      font-weight:950; font-size:12px;
+    }
+    .tag.submitted{border-color: rgba(59,130,246,.22); background: rgba(59,130,246,.08); color:#1e3a8a;}
+    .tag.review{border-color: rgba(245,158,11,.25); background: rgba(245,158,11,.12); color:#92400e;}
+    .tag.approved{border-color: rgba(34,197,94,.22); background: rgba(34,197,94,.12); color:#065f46;}
+    .tag.rejected{border-color: rgba(239,68,68,.22); background: rgba(239,68,68,.10); color:#991b1b;}
+
+    /* Drawer */
+    .drawerBackdrop{
+      position:fixed; inset:0;
+      background: rgba(2, 6, 23, .35);
+      display:none;
+      z-index: 80;
+    }
+    .drawer{
+      position:fixed; top:0; right:0;
+      height:100vh; width:min(560px, 100vw);
+      background:#fff;
+      border-left:1px solid var(--border);
+      box-shadow: 0 20px 60px rgba(0,0,0,.25);
+      transform: translateX(102%);
+      transition: .18s ease;
+      z-index: 90;
+      display:flex; flex-direction:column;
+    }
+    .drawer.open{transform: translateX(0);}
+    .drawerHead{
+      padding:14px 16px;
+      border-bottom:1px solid var(--border);
+      display:flex; justify-content:space-between; align-items:flex-start; gap:10px;
+      background: linear-gradient(180deg, rgba(11,122,51,.06), transparent);
+    }
+    .drawerHead h3{margin:0; font-weight:950; font-size:15px;}
+    .drawerHead .sub{margin-top:4px; color:var(--muted); font-size:12px; line-height:1.35}
+    .drawerBody{
+      padding:14px 16px;
+      overflow:auto;
+      display:flex; flex-direction:column; gap:12px;
+    }
+    .drawerSection{
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      background:#fff;
+      overflow:hidden;
+    }
+    .drawerSection .h{
+      padding:12px 12px;
+      border-bottom:1px solid var(--border);
+      font-weight:950;
+      font-size:13px;
+      display:flex; justify-content:space-between; align-items:center; gap:10px;
+      background: rgba(11,122,51,.03);
+    }
+    .drawerSection .b{padding:12px;}
+    .kv{display:grid; grid-template-columns: 1fr 1fr; gap:10px;}
+    .kv .k{color:var(--muted); font-size:12px; font-weight:850;}
+    .kv .v{font-size:13px; font-weight:900; margin-top:4px;}
+    @media (max-width: 560px){ .kv{grid-template-columns: 1fr;} }
+
+    #adminMap{height: 260px; border-radius: 14px; border:1px solid var(--border);}
+
+    .thumbs{display:grid; grid-template-columns: repeat(3, 1fr); gap:10px;}
+    .thumb{
+      border:1px solid var(--border);
+      border-radius: 14px;
+      overflow:hidden;
+      background:#fff;
+      height: 86px;
+      display:flex; align-items:center; justify-content:center;
+      font-size:12px; color:var(--muted);
+    }
+
+    .noteBox textarea{min-height: 90px;}
+    .drawerFoot{
+      padding:12px 16px;
+      border-top:1px solid var(--border);
+      background:#fff;
+      display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between; align-items:center;
+    }
+    .small{font-size:12px; color:var(--muted); line-height:1.35}
+
+    /* Toast */
+    .toast{
+      position: fixed;
+      left: 16px;
+      bottom: 16px;
+      background: #fff;
+      border:1px solid var(--border);
+      border-left: 6px solid var(--green2);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding:12px 14px;
+      width: min(460px, calc(100vw - 32px));
+      display:none;
+      z-index: 999;
+    }
+    .toast strong{display:block; margin-bottom:3px; font-weight:950;}
+    .toast span{color:var(--muted); font-size:12px; line-height:1.35;}
+  </style>
+</head>
+
+<body>
+  <div class="shell">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo"></div>
+        <div>
+          <h1>Farm Mapping CMS</h1>
+          <p>Admin Panel • Demo UI</p>
+        </div>
+      </div>
+
+      <div class="navTitle">Navigation</div>
+      <div class="nav">
+        <button class="navBtn active" data-view="dashboard">
+          <div class="navIcon">D</div>
+          <div><div class="t">Dashboard</div><div class="s">Summary metrics & trends</div></div>
+        </button>
+        <button class="navBtn" data-view="farmers">
+          <div class="navIcon">F</div>
+          <div><div class="t">Farmers Registry</div><div class="s">List, filter, verify records</div></div>
+        </button>
+        <button class="navBtn" data-view="inspectors">
+          <div class="navIcon">I</div>
+          <div><div class="t">Inspectors</div><div class="s">Activity & audit</div></div>
+        </button>
+        <button class="navBtn" data-view="reports">
+          <div class="navIcon">R</div>
+          <div><div class="t">Reports</div><div class="s">Exports & summaries</div></div>
+        </button>
+        <button class="navBtn" data-view="settings">
+          <div class="navIcon">S</div>
+          <div><div class="t">Settings</div><div class="s">Roles & required fields</div></div>
+        </button>
+      </div>
+
+      <div class="sideFoot">
+        <button class="btn ghost" id="btnSeed">Load Demo Data</button>
+        <button class="btn danger" id="btnClear">Clear Demo</button>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+      <div class="topbar">
+        <div class="topLeft">
+          <div class="title" id="viewTitle">Dashboard</div>
+          <div class="sub" id="viewSub">High-level snapshot of mapping activities.</div>
+        </div>
+        <div class="topRight">
+          <span class="pill" id="envPill">Environment: Demo</span>
+          <span class="pill gray" id="userPill">Signed in: Admin</span>
+          <button class="btn primary" id="btnNew">New Record (Inspector)</button>
+        </div>
+      </div>
+
+      <div class="wrap">
+        <!-- DASHBOARD -->
+        <section class="view" id="view-dashboard">
+          <div class="gridCards">
+            <div class="card">
+              <div class="metric">
+                <div>
+                  <div class="k">Total Farmers</div>
+                  <div class="v" id="mFarmers">0</div>
+                  <div class="trend">All-time registered</div>
+                </div>
+                <div class="badge">👤</div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="metric">
+                <div>
+                  <div class="k">Farms Mapped</div>
+                  <div class="v" id="mFarms">0</div>
+                  <div class="trend">Boundary polygons captured</div>
+                </div>
+                <div class="badge">🗺️</div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="metric">
+                <div>
+                  <div class="k">Pending Review</div>
+                  <div class="v" id="mPending">0</div>
+                  <div class="trend">Submitted / Under Review</div>
+                </div>
+                <div class="badge">⏳</div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="metric">
+                <div>
+                  <div class="k">Total Area (ha)</div>
+                  <div class="v" id="mArea">0.00</div>
+                  <div class="trend">Calculated from polygons</div>
+                </div>
+                <div class="badge">📐</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="height:12px"></div>
+
+          <div class="card">
+            <div class="panelHead">
+              <div>
+                <h2>Recent Submissions</h2>
+                <p>Click a record to open full profile, map, evidence, and verification workflow.</p>
+              </div>
+              <div class="filters">
+                <button class="btn ghost" id="btnGoRegistry">Open Registry</button>
+              </div>
+            </div>
+
+            <div class="tableWrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Farmer ID</th>
+                    <th>Farmer</th>
+                    <th>County</th>
+                    <th>Community</th>
+                    <th>Crop</th>
+                    <th>Area (ha)</th>
+                    <th>Inspector</th>
+                    <th>Status</th>
+                    <th>Submitted</th>
+                  </tr>
+                </thead>
+                <tbody id="recentBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- FARMERS REGISTRY -->
+        <section class="view" id="view-farmers" style="display:none;">
+          <div class="card">
+            <div class="panelHead">
+              <div>
+                <h2>Farmers Registry</h2>
+                <p>Search, filter, and open a farmer record for verification and map review.</p>
+              </div>
+              <div class="filters">
+                <div class="filterItem wide">
+                  <label>Search</label>
+                  <input id="fSearch" placeholder="Search Farmer ID, name, phone, community..."/>
+                </div>
+                <div class="filterItem">
+                  <label>Status</label>
+                  <select id="fStatus">
+                    <option value="">All</option>
+                    <option value="Submitted">Submitted</option>
+                    <option value="Under Review">Under Review</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Rejected">Rejected</option>
+                  </select>
+                </div>
+                <div class="filterItem">
+                  <label>County</label>
+                  <select id="fCounty">
+                    <option value="">All</option>
+                  </select>
+                </div>
+                <div class="filterItem">
+                  <label>Crop</label>
+                  <select id="fCrop">
+                    <option value="">All</option>
+                    <option>Cocoa</option>
+                    <option>Coffee</option>
+                    <option>Oil Palm</option>
+                    <option>Rubber</option>
+                    <option>Cassava</option>
+                    <option>Vegetables</option>
+                    <option>Other</option>
+                  </select>
+                </div>
+                <button class="btn" id="btnResetFilters">Reset</button>
+              </div>
+            </div>
+
+            <div class="tableWrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Farmer ID</th>
+                    <th>Farmer</th>
+                    <th>Phone</th>
+                    <th>County</th>
+                    <th>Community</th>
+                    <th>Crop</th>
+                    <th>Area (ha)</th>
+                    <th>Inspector</th>
+                    <th>Status</th>
+                    <th>Last Update</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="registryBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- INSPECTORS -->
+        <section class="view" id="view-inspectors" style="display:none;">
+          <div class="card">
+            <div class="panelHead">
+              <div>
+                <h2>Inspectors</h2>
+                <p>View inspector performance, submissions, and audit trail (demo layout).</p>
+              </div>
+            </div>
+            <div style="padding:16px;">
+              <div class="gridCards" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
+                <div class="card"><div class="metric"><div><div class="k">Active Inspectors</div><div class="v">4</div><div class="trend">Last 7 days</div></div><div class="badge">🧑‍💼</div></div></div>
+                <div class="card"><div class="metric"><div><div class="k">Submissions Today</div><div class="v">6</div><div class="trend">Demo data</div></div><div class="badge">📝</div></div></div>
+                <div class="card"><div class="metric"><div><div class="k">Avg. Approval Time</div><div class="v">2d</div><div class="trend">Demo estimate</div></div><div class="badge">⏱️</div></div></div>
+              </div>
+
+              <div style="height:12px"></div>
+
+              <div class="card">
+                <div class="panelHead">
+                  <div>
+                    <h2>Inspector Activity (Sample)</h2>
+                    <p>In a real system, this comes from your database log + timestamps.</p>
+                  </div>
+                </div>
+                <div class="tableWrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Inspector</th>
+                        <th>County Coverage</th>
+                        <th>Total Farmers</th>
+                        <th>Mapped Polygons</th>
+                        <th>Pending</th>
+                        <th>Last Activity</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td><b>John Doe</b></td><td>Bong, Nimba</td><td>32</td><td>29</td><td>6</td><td>Today</td></tr>
+                      <tr><td><b>Sarah K.</b></td><td>Montserrado</td><td>18</td><td>17</td><td>2</td><td>Yesterday</td></tr>
+                      <tr><td><b>Mohamed S.</b></td><td>Lofa</td><td>21</td><td>19</td><td>4</td><td>2 days ago</td></tr>
+                      <tr><td><b>Esther T.</b></td><td>Bomi</td><td>11</td><td>10</td><td>1</td><td>3 days ago</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        <!-- REPORTS -->
+        <section class="view" id="view-reports" style="display:none;">
+          <div class="card">
+            <div class="panelHead">
+              <div>
+                <h2>Reports & Exports</h2>
+                <p>Export registry lists, GeoJSON boundaries, PDF profiles, and summary analytics.</p>
+              </div>
+              <div class="filters">
+                <button class="btn ghost" id="btnExportCSV">Export CSV (Demo)</button>
+                <button class="btn ghost" id="btnExportGeo">Export GeoJSON (Demo)</button>
+                <button class="btn ghost" id="btnExportPDF">Export PDF (Demo)</button>
+              </div>
+            </div>
+            <div style="padding:16px;">
+              <div class="card">
+                <div class="panelHead">
+                  <div>
+                    <h2>Quick Filters</h2>
+                    <p>Typical report options: date range, county, crop, status, inspector.</p>
+                  </div>
+                </div>
+                <div style="padding:16px;" class="kv">
+                  <div>
+                    <label>Date Range</label>
+                    <input placeholder="e.g., 2026-01-01 to 2026-01-31"/>
+                  </div>
+                  <div>
+                    <label>County</label>
+                    <input placeholder="All counties"/>
+                  </div>
+                  <div>
+                    <label>Crop</label>
+                    <input placeholder="All crops"/>
+                  </div>
+                  <div>
+                    <label>Status</label>
+                    <input placeholder="All statuses"/>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SETTINGS -->
+        <section class="view" id="view-settings" style="display:none;">
+          <div class="card">
+            <div class="panelHead">
+              <div>
+                <h2>Settings</h2>
+                <p>Roles, permissions, required fields, and system configuration (demo layout).</p>
+              </div>
+            </div>
+            <div style="padding:16px;">
+              <div class="gridCards" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
+                <div class="card">
+                  <div class="panelHead">
+                    <div><h2>User Roles</h2><p>Admin, Reviewer, Inspector, Viewer</p></div>
+                  </div>
+                  <div style="padding:16px;">
+                    <div class="pill ok">Admin: Full access</div><br/><br/>
+                    <div class="pill warn">Reviewer: Approve/Reject only</div><br/><br/>
+                    <div class="pill gray">Inspector: Create submissions</div><br/><br/>
+                    <div class="pill gray">Viewer: Read-only</div>
+                  </div>
+                </div>
+                <div class="card">
+                  <div class="panelHead">
+                    <div><h2>Form Requirements</h2><p>Make GPS / attachments mandatory if needed.</p></div>
+                  </div>
+                  <div style="padding:16px;">
+                    <label><input type="checkbox" checked/> Require farmer name, gender, phone</label><br/>
+                    <label><input type="checkbox"/> Require GPS capture</label><br/>
+                    <label><input type="checkbox" checked/> Require polygon boundary</label><br/>
+                    <label><input type="checkbox" checked/> Require consent</label><br/>
+                    <label><input type="checkbox"/> Require ID proof upload</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Drawer -->
+  <div class="drawerBackdrop" id="drawerBackdrop"></div>
+  <aside class="drawer" id="drawer">
+    <div class="drawerHead">
+      <div>
+        <h3 id="dTitle">Farmer Profile</h3>
+        <div class="sub" id="dSub">—</div>
+      </div>
+      <button class="btn" id="btnClose">Close</button>
+    </div>
+
+    <div class="drawerBody">
+      <div class="drawerSection">
+        <div class="h">
+          <span>Verification Status</span>
+          <span id="dStatusPill" class="pill gray">—</span>
+        </div>
+        <div class="b">
+          <div class="row">
+            <button class="btn ghost" id="btnMarkReview">Mark: Under Review</button>
+            <button class="btn primary" id="btnApprove">Approve</button>
+            <button class="btn danger" id="btnReject">Reject</button>
+          </div>
+          <div class="small" style="margin-top:10px;">
+            This is where Admin/Reviewer validates GPS, polygon, and attachments before approval.
+          </div>
+        </div>
+      </div>
+
+      <div class="drawerSection">
+        <div class="h"><span>Identity</span><span class="pill gray" id="dFarmerId">—</span></div>
+        <div class="b">
+          <div class="kv">
+            <div><div class="k">Full Name</div><div class="v" id="dName">—</div></div>
+            <div><div class="k">Phone</div><div class="v" id="dPhone">—</div></div>
+            <div><div class="k">Gender</div><div class="v" id="dGender">—</div></div>
+            <div><div class="k">National ID</div><div class="v mono" id="dNatId">—</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="drawerSection">
+        <div class="h"><span>Location & Inspector</span><span class="pill gray" id="dInspector">—</span></div>
+        <div class="b">
+          <div class="kv">
+            <div><div class="k">County</div><div class="v" id="dCounty">—</div></div>
+            <div><div class="k">Community</div><div class="v" id="dCommunity">—</div></div>
+            <div><div class="k">GPS</div><div class="v mono" id="dGPS">—</div></div>
+            <div><div class="k">Submitted</div><div class="v" id="dSubmitted">—</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="drawerSection">
+        <div class="h"><span>Farm & Mapping</span><span class="pill ok" id="dArea">—</span></div>
+        <div class="b">
+          <div id="adminMap"></div>
+          <div class="row" style="margin-top:10px;">
+            <span class="pill gray">Crop: <b id="dCrop">—</b></span>
+            <span class="pill gray">Ownership: <b id="dOwner">—</b></span>
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <button class="btn" id="btnCopyGeo">Copy GeoJSON</button>
+            <button class="btn ghost" id="btnExportGeoOne">Export GeoJSON</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="drawerSection">
+        <div class="h"><span>Attachments / Evidence</span><span class="pill gray">Demo</span></div>
+        <div class="b">
+          <div class="thumbs">
+            <div class="thumb">Farmer Photo</div>
+            <div class="thumb">ID Proof</div>
+            <div class="thumb">Farm Photos</div>
+          </div>
+          <div class="small" style="margin-top:10px;">
+            In production, show real image thumbnails, download links, and “verified/invalid” toggles.
+          </div>
+        </div>
+      </div>
+
+      <div class="drawerSection noteBox">
+        <div class="h"><span>Reviewer Notes</span><span class="pill gray">Audit Trail</span></div>
+        <div class="b">
+          <label>Notes / Rejection Reason</label>
+          <textarea id="dNotes" placeholder="Example: GPS missing / polygon overlaps protected area / documents unclear..."></textarea>
+          <div class="small" style="margin-top:8px;">
+            Save notes with timestamp + reviewer name for full audit history.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="drawerFoot">
+      <div class="small">
+        Tip: Admin opens record → verifies map & attachments → marks Under Review → Approve/Reject.
+      </div>
+      <div class="row">
+        <button class="btn" id="btnPrevRec">Prev</button>
+        <button class="btn" id="btnNextRec">Next</button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="toast" id="toast">
+    <strong id="toastTitle">Notice</strong>
+    <span id="toastMsg">—</span>
+  </div>
+
+<script>
+  // -------------------------
+  // Utilities
+  // -------------------------
+  const $ = (id) => document.getElementById(id);
+  function toast(title, msg){
+    const t = $('toast');
+    $('toastTitle').textContent = title;
+    $('toastMsg').textContent = msg;
+    t.style.display = 'block';
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(() => t.style.display = 'none', 3200);
+  }
+
+  function fmt(n, d=2){
+    const x = Number(n);
+    if(!isFinite(x)) return "0.00";
+    return x.toFixed(d);
+  }
+
+  // -------------------------
+  // Demo Data (from your form fields)
+  // -------------------------
+  // geojson polygons (simple squares) around Monrovia/Bong-ish for demo
+  function poly(coordsLngLat){
+    return { type:"Feature", properties:{}, geometry:{ type:"Polygon", coordinates:[coordsLngLat] } };
+  }
+
+  const demoRecords = [
+    {
+      farmerId:"LACRA-FMR-20260113-8K3P2D",
+      personal:{ fullName:"Mary T. Kamara", phone:"+231777123456", gender:"Female", nationalId:"LASSRA-1102-93A1" },
+      location:{ county:"Bong", community:"Gbarnga Town", gps:{ lat:6.9952, lng:-9.4742 }, submittedAt:"2026-01-13 10:18" },
+      farm:{ farmName:"Kamara Cocoa Farm", crop:"Cocoa", ownership:"Owned" },
+      mapping:{
+        areaHa: 2.7341,
+        geojson: poly([[-9.4760,6.9947],[-9.4725,6.9947],[-9.4725,6.9962],[-9.4760,6.9962],[-9.4760,6.9947]])
+      },
+      inspector:"John Doe",
+      status:"Submitted",
+      updatedAt:"2026-01-13 10:18"
+    },
+    {
+      farmerId:"LACRA-FMR-20260112-N1Q7ZB",
+      personal:{ fullName:"James K. Doe", phone:"+231886555222", gender:"Male", nationalId:"NID-9920-XY" },
+      location:{ county:"Montserrado", community:"Paynesville", gps:{ lat:6.2901, lng:-10.7562 }, submittedAt:"2026-01-12 16:04" },
+      farm:{ farmName:"Doe Veg Plot", crop:"Vegetables", ownership:"Rented" },
+      mapping:{
+        areaHa: 0.4820,
+        geojson: poly([[-10.7574,6.2896],[-10.7554,6.2896],[-10.7554,6.2905],[-10.7574,6.2905],[-10.7574,6.2896]])
+      },
+      inspector:"Sarah K.",
+      status:"Under Review",
+      updatedAt:"2026-01-13 09:02"
+    },
+    {
+      farmerId:"LACRA-FMR-20260110-P0L8AA",
+      personal:{ fullName:"Hawa S. Sheriff", phone:"+231770221900", gender:"Female", nationalId:"LASSRA-7811-22B2" },
+      location:{ county:"Lofa", community:"Voinjama", gps:{ lat:8.4216, lng:-9.7477 }, submittedAt:"2026-01-10 12:40" },
+      farm:{ farmName:"Sheriff Coffee Block", crop:"Coffee", ownership:"Family Inherited" },
+      mapping:{
+        areaHa: 3.1156,
+        geojson: poly([[-9.7492,8.4210],[-9.7462,8.4210],[-9.7462,8.4230],[-9.7492,8.4230],[-9.7492,8.4210]])
+      },
+      inspector:"Mohamed S.",
+      status:"Approved",
+      updatedAt:"2026-01-12 14:20"
+    },
+    {
+      farmerId:"LACRA-FMR-20260109-X8T3QK",
+      personal:{ fullName:"Peter N. Kollie", phone:"+231775990011", gender:"Male", nationalId:"NID-1100-AA" },
+      location:{ county:"Bomi", community:"Tubmanburg", gps:{ lat:6.8702, lng:-10.8167 }, submittedAt:"2026-01-09 08:12" },
+      farm:{ farmName:"Kollie Oil Palm", crop:"Oil Palm", ownership:"Owned" },
+      mapping:{
+        areaHa: 1.2203,
+        geojson: poly([[-10.8181,6.8696],[-10.8156,6.8696],[-10.8156,6.8708],[-10.8181,6.8708],[-10.8181,6.8696]])
+      },
+      inspector:"Esther T.",
+      status:"Rejected",
+      updatedAt:"2026-01-09 17:05"
+    }
+  ];
+
+  // Current working dataset (stored in memory for demo)
+  let records = [];
+  let openedIndex = -1;
+
+  // -------------------------
+  // Navigation views
+  // -------------------------
+  const viewMeta = {
+    dashboard:{ title:"Dashboard", sub:"High-level snapshot of mapping activities." },
+    farmers:{ title:"Farmers Registry", sub:"Search, filter, open records, approve/reject." },
+    inspectors:{ title:"Inspectors", sub:"Activity & audit overview." },
+    reports:{ title:"Reports", sub:"Exports & summary analytics." },
+    settings:{ title:"Settings", sub:"Roles, permissions, required fields." }
+  };
+
+  function setView(name){
+    document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
+    const el = document.getElementById(`view-${name}`);
+    if(el) el.style.display = 'block';
+
+    document.querySelectorAll('.navBtn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.navBtn[data-view="${name}"]`)?.classList.add('active');
+
+    $('viewTitle').textContent = viewMeta[name]?.title || "Admin";
+    $('viewSub').textContent = viewMeta[name]?.sub || "";
+  }
+
+  document.querySelectorAll('.navBtn').forEach(btn => {
+    btn.addEventListener('click', () => setView(btn.dataset.view));
+  });
+
+  $('btnGoRegistry')?.addEventListener('click', () => setView('farmers'));
+
+  // -------------------------
+  // Render metrics + tables
+  // -------------------------
+  function statusTag(status){
+    const cls =
+      status === "Approved" ? "approved" :
+      status === "Rejected" ? "rejected" :
+      status === "Under Review" ? "review" : "submitted";
+    return `<span class="tag ${cls}">${status}</span>`;
+  }
+
+  function refreshMetrics(){
+    $('mFarmers').textContent = records.length;
+    $('mFarms').textContent = records.filter(r => r.mapping?.geojson).length;
+    $('mPending').textContent = records.filter(r => ["Submitted","Under Review"].includes(r.status)).length;
+    const totalArea = records.reduce((sum, r) => sum + (Number(r.mapping?.areaHa)||0), 0);
+    $('mArea').textContent = fmt(totalArea, 2);
+  }
+
+  function renderRecent(){
+    const body = $('recentBody');
+    body.innerHTML = "";
+    records
+      .slice()
+      .sort((a,b) => (b.updatedAt||"").localeCompare(a.updatedAt||""))
+      .slice(0, 8)
+      .forEach((r) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="mono"><b>${r.farmerId}</b></td>
+          <td>${r.personal.fullName}</td>
+          <td>${r.location.county}</td>
+          <td>${r.location.community}</td>
+          <td>${r.farm.crop}</td>
+          <td>${fmt(r.mapping.areaHa, 4)}</td>
+          <td>${r.inspector}</td>
+          <td>${statusTag(r.status)}</td>
+          <td>${r.location.submittedAt}</td>
+        `;
+        tr.addEventListener('click', () => openDrawerById(r.farmerId));
+        body.appendChild(tr);
+      });
+  }
+
+  function uniqueCounties(){
+    const set = new Set(records.map(r => r.location.county));
+    return Array.from(set).sort();
+  }
+
+  function fillCountyFilter(){
+    const sel = $('fCounty');
+    sel.innerHTML = `<option value="">All</option>`;
+    uniqueCounties().forEach(c => {
+      const o = document.createElement('option');
+      o.value = c; o.textContent = c;
+      sel.appendChild(o);
+    });
+  }
+
+  function getFiltered(){
+    const q = ($('fSearch')?.value || "").trim().toLowerCase();
+    const st = $('fStatus')?.value || "";
+    const co = $('fCounty')?.value || "";
+    const cr = $('fCrop')?.value || "";
+
+    return records.filter(r => {
+      const hay = [
+        r.farmerId,
+        r.personal.fullName,
+        r.personal.phone,
+        r.location.county,
+        r.location.community,
+        r.farm.crop,
+        r.inspector
+      ].join(" ").toLowerCase();
+
+      if(q && !hay.includes(q)) return false;
+      if(st && r.status !== st) return false;
+      if(co && r.location.county !== co) return false;
+      if(cr && r.farm.crop !== cr) return false;
+      return true;
+    });
+  }
+
+  function renderRegistry(){
+    const body = $('registryBody');
+    body.innerHTML = "";
+
+    const rows = getFiltered()
+      .slice()
+      .sort((a,b) => (b.updatedAt||"").localeCompare(a.updatedAt||""));
+
+    rows.forEach((r) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="mono"><b>${r.farmerId}</b></td>
+        <td>${r.personal.fullName}</td>
+        <td>${r.personal.phone}</td>
+        <td>${r.location.county}</td>
+        <td>${r.location.community}</td>
+        <td>${r.farm.crop}</td>
+        <td>${fmt(r.mapping.areaHa, 4)}</td>
+        <td>${r.inspector}</td>
+        <td>${statusTag(r.status)}</td>
+        <td>${r.updatedAt}</td>
+        <td>
+          <div class="actions">
+            <button class="btn ghost" data-act="view">View</button>
+            <button class="btn" data-act="geo">GeoJSON</button>
+          </div>
+        </td>
+      `;
+
+      // row click opens profile
+      tr.addEventListener('click', (e) => {
+        // avoid row click when action buttons clicked
+        if(e.target?.closest('button')) return;
+        openDrawerById(r.farmerId);
+      });
+
+      // action buttons
+      tr.querySelectorAll('button').forEach(b => {
+        b.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const act = b.getAttribute('data-act');
+          if(act === "view") openDrawerById(r.farmerId);
+          if(act === "geo") exportOneGeoJSON(r);
+        });
+      });
+
+      body.appendChild(tr);
+    });
+
+    fillCountyFilter();
+  }
+
+  // -------------------------
+  // Drawer + Map preview
+  // -------------------------
+  const backdrop = $('drawerBackdrop');
+  const drawer = $('drawer');
+
+  let adminMap = null;
+  let adminLayer = null;
+  let adminMarker = null;
+
+  function ensureAdminMap(){
+    if(adminMap) return;
+    adminMap = L.map('adminMap', { zoomControl:true }).setView([6.3156, -10.8074], 11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:20, attribution:'&copy; OpenStreetMap' }).addTo(adminMap);
+  }
+
+  function setDrawerStatus(status){
+    const pill = $('dStatusPill');
+    pill.className = "pill gray";
+    pill.textContent = status;
+
+    if(status === "Approved") pill.className = "pill ok";
+    else if(status === "Rejected") pill.className = "pill bad";
+    else if(status === "Under Review") pill.className = "pill warn";
+    else pill.className = "pill gray";
+  }
+
+  function openDrawerById(id){
+    const idx = records.findIndex(r => r.farmerId === id);
+    if(idx < 0) return;
+    openedIndex = idx;
+    openDrawer(records[idx]);
+  }
+
+  function openDrawer(r){
+    $('dFarmerId').textContent = r.farmerId;
+    $('dTitle').textContent = r.personal.fullName;
+    $('dSub').textContent = `${r.location.county} • ${r.location.community} • Inspector: ${r.inspector}`;
+    setDrawerStatus(r.status);
+
+    $('dName').textContent = r.personal.fullName;
+    $('dPhone').textContent = r.personal.phone;
+    $('dGender').textContent = r.personal.gender;
+    $('dNatId').textContent = r.personal.nationalId || "—";
+
+    $('dCounty').textContent = r.location.county;
+    $('dCommunity').textContent = r.location.community;
+    $('dInspector').textContent = r.inspector;
+    $('dSubmitted').textContent = r.location.submittedAt || "—";
+    $('dGPS').textContent = r.location.gps ? `${r.location.gps.lat.toFixed(6)}, ${r.location.gps.lng.toFixed(6)}` : "—";
+
+    $('dCrop').textContent = r.farm.crop;
+    $('dOwner').textContent = r.farm.ownership || "—";
+    $('dArea').textContent = `Area: ${fmt(r.mapping.areaHa, 4)} ha`;
+
+    // map
+    ensureAdminMap();
+    setTimeout(() => adminMap.invalidateSize(), 50);
+
+    // clear old layers
+    if(adminLayer){ adminMap.removeLayer(adminLayer); adminLayer = null; }
+    if(adminMarker){ adminMap.removeLayer(adminMarker); adminMarker = null; }
+
+    if(r.mapping?.geojson){
+      adminLayer = L.geoJSON(r.mapping.geojson, { style:{ weight:2, color:"#0b7a33" } }).addTo(adminMap);
+      const b = adminLayer.getBounds();
+      if(b.isValid()) adminMap.fitBounds(b, { padding:[18,18] });
+    }
+    if(r.location?.gps){
+      adminMarker = L.marker([r.location.gps.lat, r.location.gps.lng]).addTo(adminMap);
+    }
+
+    // open drawer
+    backdrop.style.display = "block";
+    drawer.classList.add('open');
+  }
+
+  function closeDrawer(){
+    drawer.classList.remove('open');
+    backdrop.style.display = "none";
+  }
+
+  $('btnClose').addEventListener('click', closeDrawer);
+  backdrop.addEventListener('click', closeDrawer);
+
+  // prev/next inside drawer
+  $('btnPrevRec').addEventListener('click', () => {
+    if(openedIndex <= 0) return toast("Navigation", "This is the first record.");
+    openedIndex--;
+    openDrawer(records[openedIndex]);
+  });
+  $('btnNextRec').addEventListener('click', () => {
+    if(openedIndex >= records.length - 1) return toast("Navigation", "This is the last record.");
+    openedIndex++;
+    openDrawer(records[openedIndex]);
+  });
+
+  // Copy/Export GeoJSON
+  function exportOneGeoJSON(r){
+    const fc = {
+      type:"FeatureCollection",
+      features:[
+        { type:"Feature", properties:{ kind:"gps_point", farmerId:r.farmerId }, geometry:{ type:"Point", coordinates:[r.location.gps.lng, r.location.gps.lat] } },
+        { ...r.mapping.geojson, properties:{ ...(r.mapping.geojson.properties||{}), kind:"farm_boundary", farmerId:r.farmerId, area_ha:r.mapping.areaHa, crop:r.farm.crop, county:r.location.county } }
+      ]
+    };
+    const blob = new Blob([JSON.stringify(fc, null, 2)], {type:"application/geo+json"});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${r.farmerId}.geojson`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  $('btnExportGeoOne').addEventListener('click', () => {
+    const id = $('dFarmerId').textContent;
+    const r = records.find(x => x.farmerId === id);
+    if(!r) return;
+    exportOneGeoJSON(r);
+  });
+
+  $('btnCopyGeo').addEventListener('click', async () => {
+    const id = $('dFarmerId').textContent;
+    const r = records.find(x => x.farmerId === id);
+    if(!r) return;
+    const text = JSON.stringify(r.mapping.geojson, null, 2);
+    try{
+      await navigator.clipboard.writeText(text);
+      toast("Copied", "Polygon GeoJSON copied to clipboard.");
+    }catch{
+      toast("Copy Failed", "Clipboard blocked. You can export instead.");
+    }
+  });
+
+  // Status actions
+  function setStatusForOpen(newStatus){
+    const id = $('dFarmerId').textContent;
+    const idx = records.findIndex(x => x.farmerId === id);
+    if(idx < 0) return;
+    records[idx].status = newStatus;
+    records[idx].updatedAt = new Date().toISOString().slice(0,16).replace("T"," ");
+    setDrawerStatus(newStatus);
+    refreshAll();
+    toast("Status Updated", `${id} marked as "${newStatus}".`);
+  }
+
+  $('btnMarkReview').addEventListener('click', () => setStatusForOpen("Under Review"));
+  $('btnApprove').addEventListener('click', () => setStatusForOpen("Approved"));
+  $('btnReject').addEventListener('click', () => setStatusForOpen("Rejected"));
+
+  // -------------------------
+  // Filters
+  // -------------------------
+  ['fSearch','fStatus','fCounty','fCrop'].forEach(id => {
+    $(id)?.addEventListener('input', renderRegistry);
+    $(id)?.addEventListener('change', renderRegistry);
+  });
+
+  $('btnResetFilters').addEventListener('click', () => {
+    $('fSearch').value = "";
+    $('fStatus').value = "";
+    $('fCounty').value = "";
+    $('fCrop').value = "";
+    renderRegistry();
+    toast("Filters", "Filters reset.");
+  });
+
+  // -------------------------
+  // Demo buttons
+  // -------------------------
+  function seedDemo(){
+    records = demoRecords.map(x => JSON.parse(JSON.stringify(x)));
+    toast("Demo Loaded", "Sample records loaded. Open the Farmers Registry and click a record.");
+    refreshAll();
+  }
+  function clearDemo(){
+    records = [];
+    refreshAll();
+    toast("Cleared", "Demo records removed.");
+  }
+
+  $('btnSeed').addEventListener('click', seedDemo);
+  $('btnClear').addEventListener('click', clearDemo);
+
+  // Exports in reports (demo)
+  $('btnExportCSV')?.addEventListener('click', () => toast("Export (Demo)", "CSV export is a backend feature. UI placeholder only."));
+  $('btnExportGeo')?.addEventListener('click', () => toast("Export (Demo)", "GeoJSON export shown per-record. Bulk export needs backend."));
+  $('btnExportPDF')?.addEventListener('click', () => toast("Export (Demo)", "PDF export is generated server-side. UI placeholder only."));
+
+  // "New Record" button (just for demo flow)
+  $('btnNew').addEventListener('click', () => {
+    toast("Inspector Portal", "In production, this opens the Inspector farm-mapping form (the wizard you already built).");
+  });
+
+  // -------------------------
+  // Refresh all UI
+  // -------------------------
+  function refreshAll(){
+    refreshMetrics();
+    renderRecent();
+    renderRegistry();
+  }
+
+  // Start
+  setView('dashboard');
+  seedDemo(); // auto-load demo for convenience
+</script>
+</body>
+</html>
