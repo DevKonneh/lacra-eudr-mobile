@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import '../services/auth_service.dart';
 import '../routes/app_routes.dart';
 import 'farmer_registry_screen.dart';
+import 'farmers_list_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -19,7 +20,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -133,6 +134,13 @@ class _DashboardScreenState extends State<DashboardScreen>
         title: const Text('LACRA Dashboard'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.cloud_sync_outlined),
+            onPressed: () {
+              Navigator.of(context).pushNamed(AppRoutes.pendingSync);
+            },
+            tooltip: 'Pending Sync',
+          ),
+          IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _handleLogout,
             tooltip: 'Logout',
@@ -145,7 +153,8 @@ class _DashboardScreenState extends State<DashboardScreen>
           indicatorColor: Colors.white,
           tabs: const [
             Tab(icon: Icon(Icons.qr_code_scanner), text: 'Scanner'),
-            Tab(icon: Icon(Icons.person_add), text: 'Farmer Registry'),
+            Tab(icon: Icon(Icons.person_add), text: 'Register'),
+            Tab(icon: Icon(Icons.people_outline), text: 'Farmers'),
           ],
         ),
       ),
@@ -156,6 +165,8 @@ class _DashboardScreenState extends State<DashboardScreen>
           _buildScannerTab(),
           // Farmer Registry Tab
           const FarmerRegistryScreen(),
+          // Farmers List Tab - view everything submitted so far
+          const FarmersListScreen(),
         ],
       ),
     );

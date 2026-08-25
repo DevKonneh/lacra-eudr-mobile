@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:http/http.dart' as http;
 import '../models/login_response_model.dart';
 import '../models/farmer_registration_model.dart';
+import '../models/farmer_record_model.dart';
 
 class ApiService {
   // LACRA EUDR backend, deployed on Render.com (Docker web service + managed
@@ -248,6 +249,87 @@ class ApiService {
           (errors is List && errors.isNotEmpty)
               ? errors.join(', ')
               : (message ?? 'Failed to reset password'),
+        );
+      }
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception('Network error: ${e.toString()}');
+    }
+  }
+
+  /// Calls GET /farmers to fetch every farmer registered so far (with their
+  /// farms). Used by FarmersListScreen so inspectors can review what has
+  /// actually been submitted to the server - not just what's queued locally.
+  Future<List<FarmerRecord>> getFarmers({required String? authToken}) async {
+    try {
+      final url = '$baseUrl/farmers';
+      final headers = <String, String>{};
+      if (authToken != null) {
+        headers['Authorization'] = 'Bearer $authToken';
+      }
+
+      _log('API REQUEST - Get Farmers: GET $url');
+
+      final response = await http.get(Uri.parse(url), headers: headers);
+
+      _log('API RESPONSE - Get Farmers: ${response.statusCode}');
+
+      final jsonData = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200) {
+        final list = jsonData['data'];
+        if (list is! List) return [];
+        return list
+            .whereType<Map<String, dynamic>>()
+            .map(FarmerRecord.fromJson)
+            .toList();
+      } else {
+        final errors = jsonData['errors'];
+        final message = jsonData['message'] as String?;
+        throw Exception(
+          (errors is List && errors.isNotEmpty)
+              ? errors.join(', ')
+              : (message ?? 'Failed to load farmers'),
+        );
+      }
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception('Network error: ${e.toString()}');
+    }
+  }
+
+  /// Calls GET /farmers/:id to fetch full detail (including farms) for a
+  /// single farmer. Used by FarmerDetailScreen.
+  Future<FarmerRecord> getFarmer({
+    required String id,
+    required String? authToken,
+  }) async {
+    try {
+      final url = '$baseUrl/farmers/$id';
+      final headers = <String, String>{};
+      if (authToken != null) {
+        headers['Authorization'] = 'Bearer $authToken';
+      }
+
+      _log('API REQUEST - Get Farmer: GET $url');
+
+      final response = await http.get(Uri.parse(url), headers: headers);
+
+      _log('API RESPONSE - Get Farmer: ${response.statusCode}');
+
+      final jsonData = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200) {
+        return FarmerRecord.fromJson(jsonData['data'] as Map<String, dynamic>);
+      } else {
+        final errors = jsonData['errors'];
+        final message = jsonData['message'] as String?;
+        throw Exception(
+          (errors is List && errors.isNotEmpty)
+              ? errors.join(', ')
+              : (message ?? 'Failed to load farmer'),
         );
       }
     } catch (e) {
