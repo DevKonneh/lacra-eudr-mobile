@@ -1,24 +1,21 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:http/http.dart' as http;
 import '../models/login_response_model.dart';
 import '../models/farmer_registration_model.dart';
 
 class ApiService {
-  // Production API used by native Android/iOS builds (not subject to browser CORS).
-  static const String _productionBaseUrl = 'https://eudr-api.netdivs.us/api';
+  // LACRA EUDR backend, deployed on Render.com (Docker web service + managed
+  // Postgres). Used by both native Android/iOS builds and the Flutter Web
+  // preview — the backend's CORS config (see src/index.ts on the server)
+  // explicitly allows any *.onrender.com origin plus a configurable list of
+  // extra origins via the CORS_EXTRA_ORIGINS env var, so a single base URL
+  // works for every platform without needing a separate web-preview URL.
+  static const String _productionBaseUrl =
+      'https://lacra-eudr-backend.onrender.com/api';
 
-  // Public sandbox URL for the local backend, used only for the Flutter Web preview.
-  // Browser CORS policy blocks the production API from the sandbox preview origin,
-  // and "localhost" in browser JS would resolve to the viewer's own machine, not the
-  // sandbox host — so Web builds must talk to this publicly reachable backend URL.
-  static const String _webPreviewBaseUrl =
-      'https://8100-i9tadgf8ntmirkrse9hvt-de59bda9.sandbox.novita.ai/api';
-
-  static const String baseUrl = kIsWeb
-      ? _webPreviewBaseUrl
-      : _productionBaseUrl;
+  static const String baseUrl = _productionBaseUrl;
 
   /// Debug-only logger. Never prints in release builds and never logs
   /// sensitive values like the Authorization header or password fields.
