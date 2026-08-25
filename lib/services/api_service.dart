@@ -269,7 +269,7 @@ class ApiService {
     required String? authToken,
   }) async {
     try {
-      final url = '$baseUrl/farmer/offline-sync';
+      final url = '$baseUrl/farmers/offline-sync';
       final headers = {'Content-Type': 'application/json'};
       if (authToken != null) {
         headers['Authorization'] = 'Bearer $authToken';

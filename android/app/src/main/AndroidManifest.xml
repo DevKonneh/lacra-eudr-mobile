@@ -13,7 +13,7 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     
     <application
-        android:label="LACRA Farm Mapping Tools"
+        android:label="My App"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -60,4 +60,5 @@
         </intent>
     </queries>
 </manifest>
+
 
