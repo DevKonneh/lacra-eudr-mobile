@@ -12,6 +12,7 @@ import 'screens/webview_screen.dart';
 import 'screens/pending_sync_screen.dart';
 import 'screens/create_inspector_screen.dart';
 import 'screens/drafts_list_screen.dart';
+import 'screens/offline_submissions_screen.dart';
 
 void main() {
   runApp(const InspectorApp());
@@ -59,6 +60,10 @@ class InspectorApp extends StatelessWidget {
             );
           case AppRoutes.drafts:
             return MaterialPageRoute(builder: (_) => const DraftsListScreen());
+          case AppRoutes.offlineSubmissions:
+            return MaterialPageRoute(
+              builder: (_) => const OfflineSubmissionsScreen(),
+            );
           default:
             return MaterialPageRoute(builder: (_) => const LoginScreen());
         }

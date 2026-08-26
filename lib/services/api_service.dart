@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../models/login_response_model.dart';
 import '../models/farmer_registration_model.dart';
 import '../models/farmer_record_model.dart';
+import '../models/offline_submission_record.dart';
 
 class ApiService {
   // Some networks (certain mobile carriers, restrictive Wi-Fi/firewalls)
@@ -623,6 +624,191 @@ class ApiService {
           (errors is List && errors.isNotEmpty)
               ? errors.join(', ')
               : (message ?? 'Failed to sync farmer'),
+        );
+      }
+    } on TimeoutException {
+      throw Exception(_networkUnreachableMessage);
+    } on SocketException {
+      throw Exception(_networkUnreachableMessage);
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception(_networkUnreachableMessage);
+    }
+  }
+
+  /// Calls POST /offline-submissions/report with a small, text-only summary
+  /// of a farmer registration that was just queued locally (or whose
+  /// retry/error state changed). Deliberately tiny (no photos, no boundary
+  /// geometry) so it has a real chance of succeeding even on the same weak
+  /// connection that made the full multipart registration fail - this is
+  /// what gives the backend/admin visibility into "data captured offline
+  /// but not yet synced" before the real sync completes.
+  ///
+  /// Best-effort by design: callers should not treat a failure here as
+  /// fatal (the local PendingSyncItem queue is still the source of truth
+  /// for the device), so this simply throws and lets the caller decide
+  /// whether to swallow the error.
+  Future<void> reportOfflineSubmission({
+    required String clientId,
+    String? displayName,
+    String? phoneNumber,
+    String? community,
+    String? district,
+    String? region,
+    String? farmName,
+    String? cropType,
+    int? retryCount,
+    String? lastError,
+    DateTime? capturedAt,
+    required String? authToken,
+  }) async {
+    try {
+      final url = '$baseUrl/offline-submissions/report';
+      final headers = {'Content-Type': 'application/json'};
+      if (authToken != null) {
+        headers['Authorization'] = 'Bearer $authToken';
+      }
+
+      _log('API REQUEST - Report Offline Submission: POST $url ($clientId)');
+
+      final response = await http
+          .post(
+            Uri.parse(url),
+            headers: headers,
+            body: jsonEncode({
+              'clientId': clientId,
+              if (displayName != null) 'displayName': displayName,
+              if (phoneNumber != null) 'phoneNumber': phoneNumber,
+              if (community != null) 'community': community,
+              if (district != null) 'district': district,
+              if (region != null) 'region': region,
+              if (farmName != null) 'farmName': farmName,
+              if (cropType != null) 'cropType': cropType,
+              if (retryCount != null) 'retryCount': retryCount,
+              if (lastError != null) 'lastError': lastError,
+              if (capturedAt != null)
+                'capturedAt': capturedAt.toIso8601String(),
+            }),
+          )
+          .timeout(_requestTimeout);
+
+      _log('API RESPONSE - Report Offline Submission: ${response.statusCode}');
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        final jsonData = jsonDecode(response.body) as Map<String, dynamic>;
+        final errors = jsonData['errors'];
+        final message = jsonData['message'] as String?;
+        throw Exception(
+          (errors is List && errors.isNotEmpty)
+              ? errors.join(', ')
+              : (message ?? 'Failed to report offline submission'),
+        );
+      }
+    } on TimeoutException {
+      throw Exception(_networkUnreachableMessage);
+    } on SocketException {
+      throw Exception(_networkUnreachableMessage);
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception(_networkUnreachableMessage);
+    }
+  }
+
+  /// Calls POST /offline-submissions/:clientId/resolve once a locally
+  /// queued item actually finishes syncing (removes the shadow record from
+  /// admin visibility, since the real Farmer now exists) or is discarded by
+  /// the inspector. Best-effort - failures here don't affect the local
+  /// queue, they only mean the shadow record lingers a bit longer than
+  /// ideal.
+  Future<void> resolveOfflineSubmission({
+    required String clientId,
+    String? syncedFarmerId,
+    required String? authToken,
+  }) async {
+    try {
+      final url = '$baseUrl/offline-submissions/$clientId/resolve';
+      final headers = {'Content-Type': 'application/json'};
+      if (authToken != null) {
+        headers['Authorization'] = 'Bearer $authToken';
+      }
+
+      _log('API REQUEST - Resolve Offline Submission: POST $url');
+
+      final response = await http
+          .post(
+            Uri.parse(url),
+            headers: headers,
+            body: jsonEncode({
+              if (syncedFarmerId != null) 'syncedFarmerId': syncedFarmerId,
+            }),
+          )
+          .timeout(_requestTimeout);
+
+      _log('API RESPONSE - Resolve Offline Submission: ${response.statusCode}');
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        final jsonData = jsonDecode(response.body) as Map<String, dynamic>;
+        final errors = jsonData['errors'];
+        final message = jsonData['message'] as String?;
+        throw Exception(
+          (errors is List && errors.isNotEmpty)
+              ? errors.join(', ')
+              : (message ?? 'Failed to resolve offline submission'),
+        );
+      }
+    } on TimeoutException {
+      throw Exception(_networkUnreachableMessage);
+    } on SocketException {
+      throw Exception(_networkUnreachableMessage);
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception(_networkUnreachableMessage);
+    }
+  }
+
+  /// Calls GET /offline-submissions to fetch every farmer registration
+  /// currently sitting on ANY inspector's device that hasn't fully synced
+  /// yet. Used by OfflineSubmissionsScreen for admin/inspector visibility
+  /// into offline field data before it reaches the real Farmer table.
+  Future<List<OfflineSubmissionRecord>> getOfflineSubmissions({
+    required String? authToken,
+  }) async {
+    try {
+      final url = '$baseUrl/offline-submissions';
+      final headers = <String, String>{};
+      if (authToken != null) {
+        headers['Authorization'] = 'Bearer $authToken';
+      }
+
+      _log('API REQUEST - Get Offline Submissions: GET $url');
+
+      final response = await http
+          .get(Uri.parse(url), headers: headers)
+          .timeout(_requestTimeout);
+
+      _log('API RESPONSE - Get Offline Submissions: ${response.statusCode}');
+
+      final jsonData = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200) {
+        final list = jsonData['data'];
+        if (list is! List) return [];
+        return list
+            .whereType<Map<String, dynamic>>()
+            .map(OfflineSubmissionRecord.fromJson)
+            .toList();
+      } else {
+        final errors = jsonData['errors'];
+        final message = jsonData['message'] as String?;
+        throw Exception(
+          (errors is List && errors.isNotEmpty)
+              ? errors.join(', ')
+              : (message ?? 'Failed to load offline submissions'),
         );
       }
     } on TimeoutException {

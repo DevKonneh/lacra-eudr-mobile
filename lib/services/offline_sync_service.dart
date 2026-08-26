@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -134,7 +135,71 @@ class OfflineSyncService {
       'Enqueued pending registration for "${item.displayName}" '
       '(queue size: ${items.length})',
     );
+
+    // Best-effort: let the backend know this registration exists somewhere
+    // on this device, even though it hasn't synced yet. This is a tiny
+    // text-only summary (no photos/geometry) so it has a real chance of
+    // getting through even on the same weak connection that caused this
+    // item to be queued in the first place. A failure here must never
+    // affect the local queue - it only means admin visibility lags behind
+    // slightly, which is strictly better than the previous behavior of
+    // no visibility at all.
+    _reportShadowRecord(item);
   }
+
+  /// Sends (or updates) the backend's lightweight "offline submission"
+  /// shadow record for [item], for admin/inspector visibility into data
+  /// that's queued locally but not yet fully synced. Never throws - any
+  /// failure (no connectivity, timeout, server error) is swallowed after
+  /// logging, since this is purely a visibility nicety and must not block
+  /// or interfere with the actual local-queue-based sync flow.
+  Future<void> _reportShadowRecord(PendingSyncItem item) async {
+    try {
+      final token = await _authService.getToken();
+      final farm = item.farms.isNotEmpty ? item.farms.first : null;
+      await _apiService.reportOfflineSubmission(
+        clientId: item.id,
+        displayName: item.displayName,
+        phoneNumber: item.farmer['phoneNumber'] as String?,
+        community: item.farmer['community'] as String?,
+        district: item.farmer['district'] as String?,
+        region: item.farmer['region'] as String?,
+        farmName: farm?['name'] as String?,
+        cropType: farm?['cropType'] as String?,
+        retryCount: item.retryCount,
+        lastError: item.lastError,
+        capturedAt: item.createdAt,
+        authToken: token,
+      );
+    } catch (e) {
+      _log('Could not report shadow record for "${item.displayName}": $e');
+    }
+  }
+
+  /// Best-effort tells the backend an item has finished syncing (or been
+  /// discarded locally), so its shadow record stops showing up as "still
+  /// offline" in admin visibility. Never throws.
+  Future<void> _resolveShadowRecord(
+    String clientId, {
+    String? syncedFarmerId,
+  }) async {
+    try {
+      final token = await _authService.getToken();
+      await _apiService.resolveOfflineSubmission(
+        clientId: clientId,
+        syncedFarmerId: syncedFarmerId,
+        authToken: token,
+      );
+    } catch (e) {
+      _log('Could not resolve shadow record for "$clientId": $e');
+    }
+  }
+
+  /// Public wrapper so callers outside this service (e.g. the farmer
+  /// registry wizard's "discard draft"/live-submission-success paths) can
+  /// resolve a shadow record without needing access to private internals.
+  Future<void> resolveShadowRecord(String clientId, {String? syncedFarmerId}) =>
+      _resolveShadowRecord(clientId, syncedFarmerId: syncedFarmerId);
 
   Future<List<PendingSyncItem>> getPendingItems() async {
     final prefs = await SharedPreferences.getInstance();
@@ -151,6 +216,9 @@ class OfflineSyncService {
     final items = await _loadItems(prefs);
     items.removeWhere((i) => i.id == id);
     await _saveItems(prefs, items);
+    // Discarded locally by the inspector - stop showing it as "still
+    // offline" in admin visibility.
+    unawaited(_resolveShadowRecord(id));
   }
 
   Future<void> clearAll() async {
@@ -208,27 +276,49 @@ class OfflineSyncService {
 
     for (final item in items) {
       try {
+        String? syncedFarmerId;
         if (item.registration != null) {
-          await _syncViaMultipart(item, token);
+          final response = await _syncViaMultipart(item, token);
+          final responseData = response['data'];
+          // The backend returns the full saved Farmer object as `data`
+          // (see FarmerController.create/offlineSync) - its `id` is the
+          // real Farmer primary key, not a separate `farmerId` field
+          // (that field holds the human-readable "LACRA-XXXX" label).
+          syncedFarmerId = responseData is Map
+              ? responseData['id']?.toString()
+              : null;
         } else {
           // Legacy item (enqueued before full snapshots existed) - sync
           // the farmer/farm record via the JSON-only endpoint. No photos
           // were ever captured for this item, since the old enqueue()
           // never stored file paths in the first place.
-          await _apiService.syncFarmerOffline(
+          final response = await _apiService.syncFarmerOffline(
             farmer: item.farmer,
             farms: item.farms,
             authToken: token,
           );
+          final responseData = response['data'];
+          syncedFarmerId = responseData is Map
+              ? (responseData['id'])?.toString()
+              : null;
         }
         synced++;
         _log('Synced "${item.displayName}" successfully');
+        // Now that the real Farmer record exists, the shadow record no
+        // longer needs to show up as "still offline" in admin visibility.
+        unawaited(
+          _resolveShadowRecord(item.id, syncedFarmerId: syncedFarmerId),
+        );
       } catch (e) {
         failed++;
         item.retryCount += 1;
         item.lastError = e.toString().replaceAll('Exception: ', '');
         stillPending.add(item);
         _log('Failed to sync "${item.displayName}": ${item.lastError}');
+        // Keep admin visibility up to date with the latest retry count/
+        // error, so it's clear this item has actually been attempted (and
+        // failed) rather than sitting untouched.
+        unawaited(_reportShadowRecord(item));
       }
     }
 
@@ -253,7 +343,10 @@ class OfflineSyncService {
   /// lastError] would only apply to the outer registerFarmer call, so this
   /// inner failure is just logged, matching the online submission's own
   /// behavior in farmer_registry_screen.dart).
-  Future<void> _syncViaMultipart(PendingSyncItem item, String? token) async {
+  Future<Map<String, dynamic>> _syncViaMultipart(
+    PendingSyncItem item,
+    String? token,
+  ) async {
     final data = FarmerRegistrationModel.fromFullJson(item.registration!);
     final response = await _apiService.registerFarmer(
       farmerData: data,
@@ -285,5 +378,7 @@ class OfflineSyncService {
         );
       }
     }
+
+    return response;
   }
 }

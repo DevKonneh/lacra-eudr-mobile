@@ -174,6 +174,17 @@ class _DashboardScreenState extends State<DashboardScreen>
             },
             tooltip: 'Pending Sync',
           ),
+          // Visible to Admin + Inspector (matches backend role gating on
+          // GET /offline-submissions): team-wide visibility into farmer
+          // registrations captured in the field on ANY device that
+          // haven't fully synced yet - not just this device's own queue.
+          IconButton(
+            icon: const Icon(Icons.cloud_off_outlined),
+            onPressed: () {
+              Navigator.of(context).pushNamed(AppRoutes.offlineSubmissions);
+            },
+            tooltip: 'Unsynced Field Data',
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _handleLogout,
