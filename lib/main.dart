@@ -13,6 +13,7 @@ import 'screens/pending_sync_screen.dart';
 import 'screens/create_inspector_screen.dart';
 import 'screens/drafts_list_screen.dart';
 import 'screens/offline_submissions_screen.dart';
+import 'screens/profile_screen.dart';
 
 void main() {
   runApp(const InspectorApp());
@@ -64,6 +65,8 @@ class InspectorApp extends StatelessWidget {
             return MaterialPageRoute(
               builder: (_) => const OfflineSubmissionsScreen(),
             );
+          case AppRoutes.profile:
+            return MaterialPageRoute(builder: (_) => const ProfileScreen());
           default:
             return MaterialPageRoute(builder: (_) => const LoginScreen());
         }

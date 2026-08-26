@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
+import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../routes/app_routes.dart';
 import 'farmer_registry_screen.dart';
 import 'farmers_list_screen.dart';
 import 'create_inspector_screen.dart';
+import 'profile_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -18,6 +20,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   late TabController _tabController;
   final _authService = AuthService();
   bool _isAdmin = false;
+  User? _currentUser;
 
   @override
   void initState() {
@@ -30,9 +33,24 @@ class _DashboardScreenState extends State<DashboardScreen>
     final user = await _authService.getUser();
     if (mounted && user != null) {
       setState(() {
+        _currentUser = user;
         _isAdmin = user.role.toUpperCase() == 'ADMIN';
       });
     }
+  }
+
+  String _userInitial() {
+    final name = _currentUser?.name.trim() ?? '';
+    return name.isNotEmpty ? name[0].toUpperCase() : '?';
+  }
+
+  Future<void> _openProfile() async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
+    // Refresh in case the name/role could have changed (e.g. after a
+    // future profile-edit feature); harmless no-op today.
+    _loadUserRole();
   }
 
   @override
@@ -144,6 +162,22 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('LACRA Dashboard'),
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: GestureDetector(
+            onTap: _openProfile,
+            child: CircleAvatar(
+              backgroundColor: Colors.white,
+              child: Text(
+                _userInitial(),
+                style: const TextStyle(
+                  color: Color(0xFF4CAF50),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ),
         actions: [
           // Admin-only: create new Inspector accounts from the field, since
           // multiple people use this app and admins need a quick way to

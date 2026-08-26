@@ -9,4 +9,5 @@ class AppRoutes {
   static const String createInspector = '/create-inspector';
   static const String drafts = '/drafts';
   static const String offlineSubmissions = '/offline-submissions';
+  static const String profile = '/profile';
 }

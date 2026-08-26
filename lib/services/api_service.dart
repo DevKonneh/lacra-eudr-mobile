@@ -403,6 +403,60 @@ class ApiService {
     }
   }
 
+  /// Calls POST /auth/change-password with {currentPassword, newPassword}.
+  /// Used by the in-app Profile screen so a logged-in user can update their
+  /// own password (server verifies currentPassword before accepting the
+  /// change) - distinct from forgotPassword/resetPassword's email-code flow
+  /// for users who are locked out.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String? authToken,
+  }) async {
+    try {
+      final url = '$baseUrl/auth/change-password';
+      final headers = {'Content-Type': 'application/json'};
+      if (authToken != null) {
+        headers['Authorization'] = 'Bearer $authToken';
+      }
+
+      _log('API REQUEST - Change Password: POST $url');
+
+      final response = await http
+          .post(
+            Uri.parse(url),
+            headers: headers,
+            body: jsonEncode({
+              'currentPassword': currentPassword,
+              'newPassword': newPassword,
+            }),
+          )
+          .timeout(_requestTimeout);
+
+      _log('API RESPONSE - Change Password: ${response.statusCode}');
+
+      final jsonData = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode != 200) {
+        final errors = jsonData['errors'];
+        final message = jsonData['message'] as String?;
+        throw Exception(
+          (errors is List && errors.isNotEmpty)
+              ? errors.join(', ')
+              : (message ?? 'Failed to update password'),
+        );
+      }
+    } on TimeoutException {
+      throw Exception(_networkUnreachableMessage);
+    } on SocketException {
+      throw Exception(_networkUnreachableMessage);
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception(_networkUnreachableMessage);
+    }
+  }
+
   /// Calls POST /auth/forget-password with {email}.
   /// Backend always returns success (even if the account doesn't exist)
   /// to prevent user enumeration, so this only throws on network/server errors.
