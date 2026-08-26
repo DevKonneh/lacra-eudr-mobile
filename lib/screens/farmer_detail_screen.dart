@@ -71,9 +71,7 @@ class _FarmerDetailScreenState extends State<FarmerDetailScreen> {
               ),
             ),
           ),
-          Expanded(
-            child: Text(value, style: const TextStyle(fontSize: 14)),
-          ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
         ],
       ),
     );
@@ -174,9 +172,9 @@ class _FarmerDetailScreenState extends State<FarmerDetailScreen> {
               children: [
                 CircleAvatar(
                   radius: 40,
-                  backgroundColor: const Color(0xFF4CAF50).withValues(
-                    alpha: 0.15,
-                  ),
+                  backgroundColor: const Color(
+                    0xFF4CAF50,
+                  ).withValues(alpha: 0.15),
                   child: Text(
                     farmer.fullName.isNotEmpty
                         ? farmer.fullName[0].toUpperCase()
@@ -270,9 +268,7 @@ class _FarmerDetailScreenState extends State<FarmerDetailScreen> {
                   _infoRow('Risk Level', farm.riskLevel),
                   _infoRow(
                     'Area',
-                    farm.totalAreaHa != null
-                        ? '${farm.totalAreaHa} ha'
-                        : null,
+                    farm.totalAreaHa != null ? '${farm.totalAreaHa} ha' : null,
                   ),
                   _infoRow('Ownership', farm.ownershipType),
                   _infoRow('Registration', farm.farmRegistrationStatus),

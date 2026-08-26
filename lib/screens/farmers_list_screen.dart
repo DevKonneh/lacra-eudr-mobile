@@ -225,9 +225,9 @@ class _FarmersListScreenState extends State<FarmersListScreen> {
                 vertical: 8,
               ),
               leading: CircleAvatar(
-                backgroundColor: const Color(0xFF4CAF50).withValues(
-                  alpha: 0.15,
-                ),
+                backgroundColor: const Color(
+                  0xFF4CAF50,
+                ).withValues(alpha: 0.15),
                 child: Text(
                   farmer.fullName.isNotEmpty
                       ? farmer.fullName[0].toUpperCase()
@@ -265,10 +265,7 @@ class _FarmersListScreenState extends State<FarmersListScreen> {
                 ],
               ),
               trailing: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: _statusColor(
                     farmer.identityStatus,

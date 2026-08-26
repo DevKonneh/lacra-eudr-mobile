@@ -128,9 +128,9 @@ class FarmerRecord {
       createdAt: DateTime.tryParse('${json['createdAt']}'),
       farms: json['farms'] is List
           ? (json['farms'] as List)
-              .whereType<Map<String, dynamic>>()
-              .map(FarmRecord.fromJson)
-              .toList()
+                .whereType<Map<String, dynamic>>()
+                .map(FarmRecord.fromJson)
+                .toList()
           : const [],
     );
   }

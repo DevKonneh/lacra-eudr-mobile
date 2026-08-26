@@ -162,10 +162,7 @@ class _PendingSyncScreenState extends State<PendingSyncScreen> {
                       children: [
                         Row(
                           children: [
-                            const Icon(
-                              Icons.cloud_off,
-                              color: Colors.orange,
-                            ),
+                            const Icon(Icons.cloud_off, color: Colors.orange),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(

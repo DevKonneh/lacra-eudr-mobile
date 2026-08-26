@@ -119,8 +119,10 @@ class OfflineSyncService {
 
     items.add(item);
     await _saveItems(prefs, items);
-    _log('Enqueued pending registration for "${item.displayName}" '
-        '(queue size: ${items.length})');
+    _log(
+      'Enqueued pending registration for "${item.displayName}" '
+      '(queue size: ${items.length})',
+    );
   }
 
   Future<List<PendingSyncItem>> getPendingItems() async {

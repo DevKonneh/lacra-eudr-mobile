@@ -52,8 +52,9 @@ class _FarmerFarmDetailsStepState extends State<FarmerFarmDetailsStep> {
             .toString();
       }
       if (widget.initialData!['yearsInCultivation'] != null) {
-        _yearsInCultivationController.text =
-            widget.initialData!['yearsInCultivation'].toString();
+        _yearsInCultivationController.text = widget
+            .initialData!['yearsInCultivation']
+            .toString();
       }
       _harvestSeasonController.text =
           widget.initialData!['harvestSeason'] ?? '';
@@ -98,8 +99,7 @@ class _FarmerFarmDetailsStepState extends State<FarmerFarmDetailsStep> {
       'numberOfTrees': _numberOfTreesController.text.trim().isNotEmpty
           ? _numberOfTreesController.text.trim()
           : null,
-      'yearsInCultivation':
-          _yearsInCultivationController.text.trim().isNotEmpty
+      'yearsInCultivation': _yearsInCultivationController.text.trim().isNotEmpty
           ? _yearsInCultivationController.text.trim()
           : null,
       'harvestSeason': _harvestSeasonController.text.trim(),

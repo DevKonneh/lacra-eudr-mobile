@@ -456,9 +456,7 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
                     final evidence = result['boundaryEvidence'];
                     if (evidence != null && evidence is List) {
                       _updateBoundaryEvidence(
-                        evidence
-                            .whereType<Map<String, dynamic>>()
-                            .toList(),
+                        evidence.whereType<Map<String, dynamic>>().toList(),
                       );
                     } else {
                       _updateBoundaryEvidence(const []);

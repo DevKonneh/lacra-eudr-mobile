@@ -465,7 +465,9 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Point not saved - a photo is required for each point.'),
+            content: Text(
+              'Point not saved - a photo is required for each point.',
+            ),
             backgroundColor: Colors.orange,
           ),
         );
@@ -1313,8 +1315,7 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
                             Icon(
                               switch (_mappingMode) {
                                 MappingMode.manual => Icons.gps_fixed,
-                                MappingMode.autoWalk =>
-                                  Icons.camera_alt,
+                                MappingMode.autoWalk => Icons.camera_alt,
                                 MappingMode.pointPhoto => Icons.touch_app,
                               },
                               size: 18,
@@ -1323,8 +1324,7 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
                             const SizedBox(width: 8),
                             Text(
                               switch (_mappingMode) {
-                                MappingMode.manual =>
-                                  'Switch to Auto GPS Walk',
+                                MappingMode.manual => 'Switch to Auto GPS Walk',
                                 MappingMode.autoWalk =>
                                   'Switch to EUDR Point + Photo',
                                 MappingMode.pointPhoto =>
@@ -1348,12 +1348,14 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: _boundaryEvidence.length >= _minPointPhotoPoints
+                          color:
+                              _boundaryEvidence.length >= _minPointPhotoPoints
                               ? Colors.green.shade50
                               : Colors.blue.shade50,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: _boundaryEvidence.length >= _minPointPhotoPoints
+                            color:
+                                _boundaryEvidence.length >= _minPointPhotoPoints
                                 ? Colors.green.shade200
                                 : Colors.blue.shade200,
                           ),
@@ -1363,7 +1365,9 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
                             Icon(
                               Icons.location_on,
                               size: 18,
-                              color: _boundaryEvidence.length >= _minPointPhotoPoints
+                              color:
+                                  _boundaryEvidence.length >=
+                                      _minPointPhotoPoints
                                   ? Colors.green.shade700
                                   : Colors.blue.shade700,
                             ),
@@ -1374,7 +1378,9 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: _boundaryEvidence.length >= _minPointPhotoPoints
+                                  color:
+                                      _boundaryEvidence.length >=
+                                          _minPointPhotoPoints
                                       ? Colors.green.shade900
                                       : Colors.blue.shade900,
                                 ),
@@ -1398,9 +1404,10 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
                                       height: 16,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(
-                                          Colors.white,
-                                        ),
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
                                       ),
                                     )
                                   : const Icon(Icons.add_a_photo),

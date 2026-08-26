@@ -50,9 +50,7 @@ class InspectorApp extends StatelessWidget {
               settings: settings,
             );
           case AppRoutes.pendingSync:
-            return MaterialPageRoute(
-              builder: (_) => const PendingSyncScreen(),
-            );
+            return MaterialPageRoute(builder: (_) => const PendingSyncScreen());
           default:
             return MaterialPageRoute(builder: (_) => const LoginScreen());
         }
