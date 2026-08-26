@@ -11,6 +11,7 @@ import 'screens/qr_scanner_screen.dart';
 import 'screens/webview_screen.dart';
 import 'screens/pending_sync_screen.dart';
 import 'screens/create_inspector_screen.dart';
+import 'screens/drafts_list_screen.dart';
 
 void main() {
   runApp(const InspectorApp());
@@ -56,6 +57,8 @@ class InspectorApp extends StatelessWidget {
             return MaterialPageRoute(
               builder: (_) => const CreateInspectorScreen(),
             );
+          case AppRoutes.drafts:
+            return MaterialPageRoute(builder: (_) => const DraftsListScreen());
           default:
             return MaterialPageRoute(builder: (_) => const LoginScreen());
         }

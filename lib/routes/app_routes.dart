@@ -7,4 +7,5 @@ class AppRoutes {
   static const String webview = '/webview';
   static const String pendingSync = '/pending-sync';
   static const String createInspector = '/create-inspector';
+  static const String drafts = '/drafts';
 }

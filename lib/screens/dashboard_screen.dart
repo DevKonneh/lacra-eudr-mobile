@@ -161,6 +161,13 @@ class _DashboardScreenState extends State<DashboardScreen>
               tooltip: 'Create Inspector',
             ),
           IconButton(
+            icon: const Icon(Icons.drafts_outlined),
+            onPressed: () {
+              Navigator.of(context).pushNamed(AppRoutes.drafts);
+            },
+            tooltip: 'Drafts',
+          ),
+          IconButton(
             icon: const Icon(Icons.cloud_sync_outlined),
             onPressed: () {
               Navigator.of(context).pushNamed(AppRoutes.pendingSync);

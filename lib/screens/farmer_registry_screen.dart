@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'dart:convert';
 import '../models/farmer_registration_model.dart';
+import '../models/draft_item.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../routes/app_routes.dart';
@@ -12,6 +13,7 @@ import '../widgets/farm_map_widget.dart';
 import '../widgets/farmer_attachments_step.dart';
 import '../widgets/farmer_review_step.dart';
 import '../services/offline_sync_service.dart';
+import '../services/draft_service.dart';
 
 void _log(String message) {
   if (kDebugMode) {
@@ -21,7 +23,12 @@ void _log(String message) {
 }
 
 class FarmerRegistryScreen extends StatefulWidget {
-  const FarmerRegistryScreen({super.key});
+  /// If resuming a previously saved draft, pass it here - initState will
+  /// restore the wizard's exact state (step data, current step, boundary,
+  /// completed steps) so the inspector picks up right where they left off.
+  final DraftItem? draftToResume;
+
+  const FarmerRegistryScreen({super.key, this.draftToResume});
 
   @override
   State<FarmerRegistryScreen> createState() => _FarmerRegistryScreenState();
@@ -34,13 +41,39 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
   final ApiService _apiService = ApiService();
   final AuthService _authService = AuthService();
   final OfflineSyncService _offlineSyncService = OfflineSyncService();
+  final DraftService _draftService = DraftService();
   bool _isSubmitting = false;
+  bool _isSavingDraft = false;
   Map<String, dynamic>? _boundaryJson;
   // EUDR Point + Photo mode evidence (set only when that mode was used in
   // the Mapping step). Each entry: {sequence, lat, lng, accuracy,
   // timestamp, photoPath}. Uploaded via a follow-up API call once the
   // farm is created by _submitForm().
   List<Map<String, dynamic>>? _boundaryEvidence;
+  // Set once a draft has been saved (or an existing draft is being
+  // resumed) - subsequent "Save as Draft" taps update this same record
+  // instead of creating a new one each time.
+  String? _draftId;
+
+  @override
+  void initState() {
+    super.initState();
+    final draft = widget.draftToResume;
+    if (draft != null) {
+      _draftId = draft.id;
+      _formData.addAll(draft.formData);
+      _boundaryJson = draft.boundaryJson;
+      _boundaryEvidence = draft.boundaryEvidence;
+      _currentStep = draft.currentStep;
+      for (
+        int i = 0;
+        i < _stepCompleted.length && i < draft.stepCompleted.length;
+        i++
+      ) {
+        _stepCompleted[i] = draft.stepCompleted[i];
+      }
+    }
+  }
 
   final List<Map<String, String>> _steps = const [
     {'title': 'Personal Info', 'hint': 'Farmer identity and contact'},
@@ -243,6 +276,7 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
       final hasConnectivity = await _offlineSyncService.hasConnectivity();
       if (!hasConnectivity) {
         await _offlineSyncService.enqueue(farmerData);
+        await _discardDraftIfAny();
         if (mounted) {
           _showQueuedForSyncMessage();
           Navigator.of(
@@ -298,6 +332,7 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
           }
         }
 
+        await _discardDraftIfAny();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -317,6 +352,7 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
         // (e.g. duplicate national ID) need the inspector to fix the form.
         if (_isNetworkError(e)) {
           await _offlineSyncService.enqueue(farmerData);
+          await _discardDraftIfAny();
           if (mounted) {
             _showQueuedForSyncMessage();
             Navigator.of(
@@ -340,6 +376,84 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
           _isSubmitting = false;
         });
       }
+    }
+  }
+
+  /// Saves the wizard's current state (whatever has been filled in so
+  /// far, at any step) as a draft, without validating or submitting
+  /// anything. Called by the "Save as Draft" button so an inspector who
+  /// runs out of time in the field - or is waiting on the farmer to find
+  /// a missing document - doesn't lose their progress.
+  Future<void> _saveAsDraft() async {
+    final hasAnyName = (_formData['fullName'] ?? '')
+        .toString()
+        .trim()
+        .isNotEmpty;
+    if (!hasAnyName) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Please enter at least the farmer\'s name before saving as a draft.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSavingDraft = true;
+    });
+
+    try {
+      final id = await _draftService.saveDraft(
+        id: _draftId,
+        formData: _formData,
+        boundaryJson: _boundaryJson,
+        boundaryEvidence: _boundaryEvidence,
+        currentStep: _currentStep,
+        stepCompleted: _stepCompleted,
+      );
+      _draftId = id;
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Draft saved. Resume it anytime from "Drafts" on the dashboard.',
+            ),
+            backgroundColor: Colors.blueGrey,
+          ),
+        );
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil(AppRoutes.dashboard, (route) => false);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save draft: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSavingDraft = false;
+        });
+      }
+    }
+  }
+
+  /// If this registration was resumed from a saved draft, removes that
+  /// draft now that it has either been submitted successfully or queued
+  /// for offline sync - it's no longer "in progress", so it shouldn't
+  /// keep cluttering the Drafts list.
+  Future<void> _discardDraftIfAny() async {
+    if (_draftId != null) {
+      await _draftService.deleteDraft(_draftId!);
     }
   }
 
@@ -816,48 +930,70 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
                 ],
               ),
               child: SafeArea(
-                child: Row(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _currentStep > 0 ? _previousStep : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.grey.shade200,
-                          foregroundColor: Colors.black87,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          textStyle: const TextStyle(fontSize: 14),
-                        ),
-                        child: const Text('Back'),
+                    TextButton.icon(
+                      onPressed: _isSavingDraft ? null : _saveAsDraft,
+                      icon: _isSavingDraft
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.save_outlined, size: 18),
+                      label: Text(
+                        _isSavingDraft ? 'Saving...' : 'Save as Draft',
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF4CAF50),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 2,
-                      child: ElevatedButton(
-                        onPressed: _currentStep < _steps.length - 1
-                            ? _nextStep
-                            : (_isSubmitting ? null : _submitForm),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          textStyle: const TextStyle(fontSize: 14),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: _currentStep > 0 ? _previousStep : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.grey.shade200,
+                              foregroundColor: Colors.black87,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              textStyle: const TextStyle(fontSize: 14),
+                            ),
+                            child: const Text('Back'),
+                          ),
                         ),
-                        child: _isSubmitting
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton(
+                            onPressed: _currentStep < _steps.length - 1
+                                ? _nextStep
+                                : (_isSubmitting ? null : _submitForm),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              textStyle: const TextStyle(fontSize: 14),
+                            ),
+                            child: _isSubmitting
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                : Text(
+                                    _currentStep < _steps.length - 1
+                                        ? 'Next'
+                                        : 'Submit',
                                   ),
-                                ),
-                              )
-                            : Text(
-                                _currentStep < _steps.length - 1
-                                    ? 'Next'
-                                    : 'Submit',
-                              ),
-                      ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -902,6 +1038,23 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    TextButton.icon(
+                      onPressed: _isSavingDraft ? null : _saveAsDraft,
+                      icon: _isSavingDraft
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.save_outlined, size: 18),
+                      label: Text(
+                        _isSavingDraft ? 'Saving...' : 'Save as Draft',
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF4CAF50),
+                      ),
+                    ),
+                    const Spacer(),
                     ElevatedButton(
                       onPressed: _currentStep > 0 ? _previousStep : null,
                       style: ElevatedButton.styleFrom(
