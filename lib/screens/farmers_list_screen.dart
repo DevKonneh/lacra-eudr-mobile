@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import '../models/farmer_record_model.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../widgets/snapping_list_view.dart';
 import 'farmer_detail_screen.dart';
+
+/// Fixed row height used for the snap-to-item list below. Every farmer
+/// card must fit within this height for the snapping math to line up.
+const double _kFarmerCardExtent = 118;
 
 /// Shows every farmer that has actually been submitted to the server so
 /// far (via GET /api/farmers). This is the missing "where do I see the
@@ -210,15 +215,17 @@ class _FarmersListScreenState extends State<FarmersListScreen> {
       );
     }
 
-    return RefreshIndicator(
+    return SnappingListView<FarmerRecord>(
+      items: _filtered,
+      itemExtent: _kFarmerCardExtent,
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
       onRefresh: _loadFarmers,
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-        itemCount: _filtered.length,
-        itemBuilder: (context, index) {
-          final farmer = _filtered[index];
-          return Card(
-            margin: const EdgeInsets.only(bottom: 10),
+      keyOf: (farmer) => farmer.id,
+      itemBuilder: (context, farmer, index) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Card(
+            margin: EdgeInsets.zero,
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
@@ -289,9 +296,9 @@ class _FarmersListScreenState extends State<FarmersListScreen> {
                 );
               },
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }

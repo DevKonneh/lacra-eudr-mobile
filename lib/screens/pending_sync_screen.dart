@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import '../models/pending_sync_item.dart';
 import '../services/offline_sync_service.dart';
+import '../widgets/snapping_list_view.dart';
+
+/// Fixed row height for the snap-to-item pending-sync list below. This is
+/// taller than the other lists since these cards can show retry/error text.
+const double _kPendingSyncCardExtent = 168;
 
 /// Shows farmer registrations that are queued locally because they were
 /// captured while offline (or the live submission failed due to a network
@@ -148,73 +153,83 @@ class _PendingSyncScreenState extends State<PendingSyncScreen> {
                 ],
               ),
             )
-          : ListView.builder(
+          : SnappingListView<PendingSyncItem>(
+              items: _items,
+              itemExtent: _kPendingSyncCardExtent,
               padding: const EdgeInsets.all(12),
-              itemCount: _items.length,
-              itemBuilder: (context, index) {
-                final item = _items[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.cloud_off, color: Colors.orange),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                item.displayName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
+              onRefresh: _loadItems,
+              keyOf: (item) => item.id,
+              itemBuilder: (context, item, index) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Card(
+                    margin: EdgeInsets.zero,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.cloud_off, color: Colors.orange),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  item.displayName,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
                                 ),
                               ),
-                            ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.delete_outline,
-                                color: Colors.red,
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.red,
+                                ),
+                                onPressed: () => _confirmDelete(item),
+                                tooltip: 'Discard',
                               ),
-                              onPressed: () => _confirmDelete(item),
-                              tooltip: 'Discard',
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Captured: ${item.createdAt.toLocal()}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF757575),
+                            ],
                           ),
-                        ),
-                        if (item.farms.isNotEmpty)
-                          Text(
-                            'Farm: ${item.farms.first['name'] ?? '-'}',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                        if (item.retryCount > 0) ...[
                           const SizedBox(height: 4),
                           Text(
-                            'Retry attempts: ${item.retryCount}',
+                            'Captured: ${item.createdAt.toLocal()}',
                             style: const TextStyle(
                               fontSize: 12,
-                              color: Colors.orange,
+                              color: Color(0xFF757575),
                             ),
                           ),
-                          if (item.lastError != null)
+                          if (item.farms.isNotEmpty)
                             Text(
-                              'Last error: ${item.lastError}',
+                              'Farm: ${item.farms.first['name'] ?? '-'}',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          if (item.retryCount > 0) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'Retry attempts: ${item.retryCount}',
                               style: const TextStyle(
                                 fontSize: 12,
-                                color: Colors.red,
+                                color: Colors.orange,
                               ),
                             ),
+                            if (item.lastError != null)
+                              Text(
+                                'Last error: ${item.lastError}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.red,
+                                ),
+                              ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
                 );

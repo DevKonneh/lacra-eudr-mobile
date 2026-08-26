@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import '../models/draft_item.dart';
 import '../services/draft_service.dart';
+import '../widgets/snapping_list_view.dart';
 import 'farmer_registry_screen.dart';
+
+/// Fixed row height for the snap-to-item draft list below.
+const double _kDraftCardExtent = 128;
 
 /// Lists farmer registrations the inspector saved as drafts (in-progress,
 /// not yet submitted). Tapping a draft resumes the registration wizard
@@ -136,57 +140,65 @@ class _DraftsListScreenState extends State<DraftsListScreen> {
                 ),
               ),
             )
-          : ListView.builder(
+          : SnappingListView<DraftItem>(
+              items: _drafts,
+              itemExtent: _kDraftCardExtent,
               padding: const EdgeInsets.all(12),
-              itemCount: _drafts.length,
-              itemBuilder: (context, index) {
-                final draft = _drafts[index];
+              onRefresh: _loadDrafts,
+              keyOf: (draft) => draft.id,
+              itemBuilder: (context, draft, index) {
                 final totalSteps = draft.stepCompleted.length;
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    leading: CircleAvatar(
-                      backgroundColor: const Color(
-                        0xFF4CAF50,
-                      ).withValues(alpha: 0.15),
-                      child: const Icon(
-                        Icons.edit_note,
-                        color: Color(0xFF388E3C),
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Card(
+                    margin: EdgeInsets.zero,
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
                       ),
-                    ),
-                    title: Text(
-                      draft.displayName,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 2),
-                        if (draft.locationSummary != null)
-                          Text(
-                            draft.locationSummary!,
-                            style: const TextStyle(fontSize: 13),
-                          ),
-                        Text(
-                          '${draft.completedStepCount}/$totalSteps steps '
-                          'completed · Updated ${_formatUpdatedAt(draft.updatedAt)}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF757575),
-                          ),
+                      leading: CircleAvatar(
+                        backgroundColor: const Color(
+                          0xFF4CAF50,
+                        ).withValues(alpha: 0.15),
+                        child: const Icon(
+                          Icons.edit_note,
+                          color: Color(0xFF388E3C),
                         ),
-                      ],
+                      ),
+                      title: Text(
+                        draft.displayName,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 2),
+                          if (draft.locationSummary != null)
+                            Text(
+                              draft.locationSummary!,
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          Text(
+                            '${draft.completedStepCount}/$totalSteps steps '
+                            'completed · Updated ${_formatUpdatedAt(draft.updatedAt)}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF757575),
+                            ),
+                          ),
+                        ],
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.red,
+                        ),
+                        onPressed: () => _confirmDelete(draft),
+                        tooltip: 'Discard',
+                      ),
+                      onTap: () => _resumeDraft(draft),
                     ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.red),
-                      onPressed: () => _confirmDelete(draft),
-                      tooltip: 'Discard',
-                    ),
-                    onTap: () => _resumeDraft(draft),
                   ),
                 );
               },
