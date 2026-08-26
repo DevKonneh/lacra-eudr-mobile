@@ -28,6 +28,8 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
   final _idTypeOtherController = TextEditingController();
   final _nationalIdController = TextEditingController();
   final _emailController = TextEditingController();
+  final _cooperativeNameController = TextEditingController();
+  final _cooperativeIdController = TextEditingController();
   String? _idType;
 
   static const List<String> _idTypeOptions = [
@@ -264,6 +266,10 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
       _idTypeOtherController.text = widget.initialData!['idTypeOther'] ?? '';
       _nationalIdController.text = widget.initialData!['nationalId'] ?? '';
       _emailController.text = widget.initialData!['email'] ?? '';
+      _cooperativeNameController.text =
+          widget.initialData!['cooperativeName'] ?? '';
+      _cooperativeIdController.text =
+          widget.initialData!['cooperativeId'] ?? '';
       _photoPath = widget.initialData!['farmerPhotoPath'];
     }
     _updateData();
@@ -279,6 +285,8 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
     _idTypeOtherController.dispose();
     _nationalIdController.dispose();
     _emailController.dispose();
+    _cooperativeNameController.dispose();
+    _cooperativeIdController.dispose();
     super.dispose();
   }
 
@@ -301,6 +309,8 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
           : '',
       'nationalId': _nationalIdController.text.trim(),
       'email': _emailController.text.trim(),
+      'cooperativeName': _cooperativeNameController.text.trim(),
+      'cooperativeId': _cooperativeIdController.text.trim(),
       'farmerPhotoPath': _photoPath,
     });
   }
@@ -701,6 +711,33 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
                 }
                 return null;
               },
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Group / Cooperative Affiliation (Optional)',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF334155),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _cooperativeNameController,
+              style: const TextStyle(fontSize: 14),
+              decoration: const InputDecoration(
+                labelText: 'Cooperative Name',
+                hintText: 'e.g., Lofa Cocoa Farmers Union',
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _cooperativeIdController,
+              style: const TextStyle(fontSize: 14),
+              decoration: const InputDecoration(
+                labelText: 'Cooperative ID',
+                hintText: 'e.g., COOP-0231',
+              ),
             ),
             const SizedBox(height: 24),
             const Text(

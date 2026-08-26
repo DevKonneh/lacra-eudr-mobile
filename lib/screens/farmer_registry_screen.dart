@@ -218,6 +218,18 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
         farmPhotosPaths: _formData['farmPhotosPaths'] != null
             ? List<String>.from(_formData['farmPhotosPaths'])
             : null,
+        cooperativeName: _formData['cooperativeName'],
+        cooperativeId: _formData['cooperativeId'],
+        enumeratorId: _formData['enumeratorId'],
+        numberOfTrees: _formData['numberOfTrees']?.toString(),
+        yearsInCultivation: _formData['yearsInCultivation']?.toString(),
+        harvestSeason: _formData['harvestSeason'],
+        averageYield: _formData['averageYield'],
+        buyers: _formData['buyers'],
+        useChemicals: _formData['useChemicals'] ?? false,
+        extensionServices: _formData['extensionServices'] ?? false,
+        farmAddress: _formData['farmAddress'],
+        signaturePath: _formData['signaturePath'],
       );
 
       // If the device has no connectivity at all, don't even attempt the

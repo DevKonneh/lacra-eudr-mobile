@@ -10,6 +10,14 @@ class FarmerRegistrationModel {
   final String? nationalId;
   final String? email;
 
+  // Cooperative / Enumerator affiliation (EUDR traceability - mirrors
+  // admin panel's RegisterFarmer.tsx "Group/Cooperative Affiliation" +
+  // enumeratorId fields, backend Farmer.cooperativeName/cooperativeId/
+  // enumeratorId columns).
+  final String? cooperativeName;
+  final String? cooperativeId;
+  final String? enumeratorId;
+
   // Location Information
   final String county;
   final String? district;
@@ -28,6 +36,17 @@ class FarmerRegistrationModel {
   final String? farmUnitManual;
   final String? farmNotes;
 
+  // EUDR due-diligence farm attributes (mirrors admin panel's
+  // RegisterFarmer.tsx farms[] fields, backend Farm entity columns).
+  final String? numberOfTrees;
+  final String? yearsInCultivation;
+  final String? harvestSeason;
+  final String? averageYield;
+  final String? buyers;
+  final bool useChemicals;
+  final bool extensionServices;
+  final String? farmAddress;
+
   // Mapping Information
   final String? areaHa;
   final String? areaAc;
@@ -45,6 +64,7 @@ class FarmerRegistrationModel {
   final String? farmerPhotoPath;
   final String? nationalIdPath;
   final String? farmSelfiePath;
+  final String? signaturePath;
   final List<String>? farmPhotosPaths;
 
   FarmerRegistrationModel({
@@ -57,6 +77,9 @@ class FarmerRegistrationModel {
     this.idTypeOther,
     this.nationalId,
     this.email,
+    this.cooperativeName,
+    this.cooperativeId,
+    this.enumeratorId,
     required this.county,
     this.district,
     required this.community,
@@ -71,6 +94,14 @@ class FarmerRegistrationModel {
     this.farmSizeManual,
     this.farmUnitManual,
     this.farmNotes,
+    this.numberOfTrees,
+    this.yearsInCultivation,
+    this.harvestSeason,
+    this.averageYield,
+    this.buyers,
+    this.useChemicals = false,
+    this.extensionServices = false,
+    this.farmAddress,
     this.areaHa,
     this.areaAc,
     this.boundaryJson,
@@ -79,6 +110,7 @@ class FarmerRegistrationModel {
     this.farmerPhotoPath,
     this.nationalIdPath,
     this.farmSelfiePath,
+    this.signaturePath,
     this.farmPhotosPaths,
   });
 
@@ -93,6 +125,9 @@ class FarmerRegistrationModel {
       if (idTypeOther != null) 'idTypeOther': idTypeOther,
       if (nationalId != null) 'nationalId': nationalId,
       if (email != null) 'email': email,
+      if (cooperativeName != null) 'cooperativeName': cooperativeName,
+      if (cooperativeId != null) 'cooperativeId': cooperativeId,
+      if (enumeratorId != null) 'enumeratorId': enumeratorId,
       'county': county,
       if (district != null) 'district': district,
       'community': community,
@@ -107,6 +142,14 @@ class FarmerRegistrationModel {
       if (farmSizeManual != null) 'farmSizeManual': farmSizeManual,
       if (farmUnitManual != null) 'farmUnitManual': farmUnitManual,
       if (farmNotes != null) 'farmNotes': farmNotes,
+      if (numberOfTrees != null) 'numberOfTrees': numberOfTrees,
+      if (yearsInCultivation != null) 'yearsInCultivation': yearsInCultivation,
+      if (harvestSeason != null) 'harvestSeason': harvestSeason,
+      if (averageYield != null) 'averageYield': averageYield,
+      if (buyers != null) 'buyers': buyers,
+      'useChemicals': useChemicals,
+      'extensionServices': extensionServices,
+      if (farmAddress != null) 'farmAddress': farmAddress,
       if (areaHa != null) 'areaHa': areaHa,
       if (areaAc != null) 'areaAc': areaAc,
       if (boundaryJson != null) 'boundaryJson': boundaryJson,
@@ -125,6 +168,9 @@ class FarmerRegistrationModel {
     String? idTypeOther,
     String? nationalId,
     String? email,
+    String? cooperativeName,
+    String? cooperativeId,
+    String? enumeratorId,
     String? county,
     String? district,
     String? community,
@@ -139,6 +185,14 @@ class FarmerRegistrationModel {
     String? farmSizeManual,
     String? farmUnitManual,
     String? farmNotes,
+    String? numberOfTrees,
+    String? yearsInCultivation,
+    String? harvestSeason,
+    String? averageYield,
+    String? buyers,
+    bool? useChemicals,
+    bool? extensionServices,
+    String? farmAddress,
     String? areaHa,
     String? areaAc,
     String? boundaryJson,
@@ -147,6 +201,7 @@ class FarmerRegistrationModel {
     String? farmerPhotoPath,
     String? nationalIdPath,
     String? farmSelfiePath,
+    String? signaturePath,
     List<String>? farmPhotosPaths,
   }) {
     return FarmerRegistrationModel(
@@ -159,6 +214,9 @@ class FarmerRegistrationModel {
       idTypeOther: idTypeOther ?? this.idTypeOther,
       nationalId: nationalId ?? this.nationalId,
       email: email ?? this.email,
+      cooperativeName: cooperativeName ?? this.cooperativeName,
+      cooperativeId: cooperativeId ?? this.cooperativeId,
+      enumeratorId: enumeratorId ?? this.enumeratorId,
       county: county ?? this.county,
       district: district ?? this.district,
       community: community ?? this.community,
@@ -173,6 +231,14 @@ class FarmerRegistrationModel {
       farmSizeManual: farmSizeManual ?? this.farmSizeManual,
       farmUnitManual: farmUnitManual ?? this.farmUnitManual,
       farmNotes: farmNotes ?? this.farmNotes,
+      numberOfTrees: numberOfTrees ?? this.numberOfTrees,
+      yearsInCultivation: yearsInCultivation ?? this.yearsInCultivation,
+      harvestSeason: harvestSeason ?? this.harvestSeason,
+      averageYield: averageYield ?? this.averageYield,
+      buyers: buyers ?? this.buyers,
+      useChemicals: useChemicals ?? this.useChemicals,
+      extensionServices: extensionServices ?? this.extensionServices,
+      farmAddress: farmAddress ?? this.farmAddress,
       areaHa: areaHa ?? this.areaHa,
       areaAc: areaAc ?? this.areaAc,
       boundaryJson: boundaryJson ?? this.boundaryJson,
@@ -181,6 +247,7 @@ class FarmerRegistrationModel {
       farmerPhotoPath: farmerPhotoPath ?? this.farmerPhotoPath,
       nationalIdPath: nationalIdPath ?? this.nationalIdPath,
       farmSelfiePath: farmSelfiePath ?? this.farmSelfiePath,
+      signaturePath: signaturePath ?? this.signaturePath,
       farmPhotosPaths: farmPhotosPaths ?? this.farmPhotosPaths,
     );
   }

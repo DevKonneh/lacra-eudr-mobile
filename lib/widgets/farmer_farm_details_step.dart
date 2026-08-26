@@ -23,6 +23,14 @@ class _FarmerFarmDetailsStepState extends State<FarmerFarmDetailsStep> {
   final _farmSizeManualController = TextEditingController();
   final _farmUnitManualController = TextEditingController();
   final _farmNotesController = TextEditingController();
+  final _numberOfTreesController = TextEditingController();
+  final _yearsInCultivationController = TextEditingController();
+  final _harvestSeasonController = TextEditingController();
+  final _averageYieldController = TextEditingController();
+  final _buyersController = TextEditingController();
+  final _farmAddressController = TextEditingController();
+  bool _useChemicals = false;
+  bool _extensionServices = false;
 
   @override
   void initState() {
@@ -39,6 +47,21 @@ class _FarmerFarmDetailsStepState extends State<FarmerFarmDetailsStep> {
       _farmUnitManualController.text =
           widget.initialData!['farmUnitManual'] ?? 'hectares';
       _farmNotesController.text = widget.initialData!['farmNotes'] ?? '';
+      if (widget.initialData!['numberOfTrees'] != null) {
+        _numberOfTreesController.text = widget.initialData!['numberOfTrees']
+            .toString();
+      }
+      if (widget.initialData!['yearsInCultivation'] != null) {
+        _yearsInCultivationController.text =
+            widget.initialData!['yearsInCultivation'].toString();
+      }
+      _harvestSeasonController.text =
+          widget.initialData!['harvestSeason'] ?? '';
+      _averageYieldController.text = widget.initialData!['averageYield'] ?? '';
+      _buyersController.text = widget.initialData!['buyers'] ?? '';
+      _farmAddressController.text = widget.initialData!['farmAddress'] ?? '';
+      _useChemicals = widget.initialData!['useChemicals'] ?? false;
+      _extensionServices = widget.initialData!['extensionServices'] ?? false;
     }
     _updateData();
   }
@@ -52,6 +75,12 @@ class _FarmerFarmDetailsStepState extends State<FarmerFarmDetailsStep> {
     _farmSizeManualController.dispose();
     _farmUnitManualController.dispose();
     _farmNotesController.dispose();
+    _numberOfTreesController.dispose();
+    _yearsInCultivationController.dispose();
+    _harvestSeasonController.dispose();
+    _averageYieldController.dispose();
+    _buyersController.dispose();
+    _farmAddressController.dispose();
     super.dispose();
   }
 
@@ -66,6 +95,19 @@ class _FarmerFarmDetailsStepState extends State<FarmerFarmDetailsStep> {
           : null,
       'farmUnitManual': _farmUnitManualController.text.trim(),
       'farmNotes': _farmNotesController.text.trim(),
+      'numberOfTrees': _numberOfTreesController.text.trim().isNotEmpty
+          ? _numberOfTreesController.text.trim()
+          : null,
+      'yearsInCultivation':
+          _yearsInCultivationController.text.trim().isNotEmpty
+          ? _yearsInCultivationController.text.trim()
+          : null,
+      'harvestSeason': _harvestSeasonController.text.trim(),
+      'averageYield': _averageYieldController.text.trim(),
+      'buyers': _buyersController.text.trim(),
+      'farmAddress': _farmAddressController.text.trim(),
+      'useChemicals': _useChemicals,
+      'extensionServices': _extensionServices,
     });
   }
 
@@ -134,7 +176,7 @@ class _FarmerFarmDetailsStepState extends State<FarmerFarmDetailsStep> {
                   ),
                 ),
                 DropdownMenuItem(
-                  value: 'Oil Palm',
+                  value: 'Palm',
                   child: Text(
                     'Oil Palm',
                     style: TextStyle(color: Colors.black87),
@@ -310,6 +352,96 @@ class _FarmerFarmDetailsStepState extends State<FarmerFarmDetailsStep> {
                 hintText: 'Any special notes about the farm...',
               ),
               maxLines: 4,
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'EUDR Due-Diligence Details (Optional)',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF334155),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _numberOfTreesController,
+              style: const TextStyle(fontSize: 14),
+              decoration: const InputDecoration(
+                labelText: 'Number of Trees',
+                hintText: 'e.g., 250',
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _yearsInCultivationController,
+              style: const TextStyle(fontSize: 14),
+              decoration: const InputDecoration(
+                labelText: 'Years in Cultivation',
+                hintText: 'e.g., 8',
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _harvestSeasonController,
+              style: const TextStyle(fontSize: 14),
+              decoration: const InputDecoration(
+                labelText: 'Harvest Season',
+                hintText: 'e.g., Sept-Dec',
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _averageYieldController,
+              style: const TextStyle(fontSize: 14),
+              decoration: const InputDecoration(
+                labelText: 'Average Yield',
+                hintText: 'e.g., 1.2 tons/ha',
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _buyersController,
+              style: const TextStyle(fontSize: 14),
+              decoration: const InputDecoration(
+                labelText: 'Buyers',
+                hintText: 'e.g., Local cooperative, ABC Exports',
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _farmAddressController,
+              style: const TextStyle(fontSize: 14),
+              decoration: const InputDecoration(
+                labelText: 'Farm Address / Location Description',
+                hintText: 'e.g., Off main road, near river crossing',
+              ),
+            ),
+            const SizedBox(height: 8),
+            CheckboxListTile(
+              value: _useChemicals,
+              onChanged: (value) {
+                setState(() {
+                  _useChemicals = value ?? false;
+                  _updateData();
+                });
+              },
+              title: const Text('Uses Fertilizers / Chemicals?'),
+              controlAffinity: ListTileControlAffinity.leading,
+              contentPadding: EdgeInsets.zero,
+            ),
+            CheckboxListTile(
+              value: _extensionServices,
+              onChanged: (value) {
+                setState(() {
+                  _extensionServices = value ?? false;
+                  _updateData();
+                });
+              },
+              title: const Text('Access to Extension Services?'),
+              controlAffinity: ListTileControlAffinity.leading,
+              contentPadding: EdgeInsets.zero,
             ),
           ],
         ),

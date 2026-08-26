@@ -143,6 +143,20 @@ class ApiService {
         }
       }
 
+      if (farmerData.signaturePath != null) {
+        final file = File(farmerData.signaturePath!);
+        if (await file.exists()) {
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'signature',
+              farmerData.signaturePath!,
+              filename: 'signature.jpg',
+            ),
+          );
+          fileNames.add('signature: ${file.path}');
+        }
+      }
+
       if (farmerData.farmPhotosPaths != null) {
         for (int i = 0; i < farmerData.farmPhotosPaths!.length; i++) {
           final file = File(farmerData.farmPhotosPaths![i]);

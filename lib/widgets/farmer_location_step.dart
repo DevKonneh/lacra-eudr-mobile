@@ -23,6 +23,7 @@ class _FarmerLocationStepState extends State<FarmerLocationStep> {
   final _districtController = TextEditingController();
   final _communityController = TextEditingController();
   final _inspectorNameController = TextEditingController();
+  final _enumeratorIdController = TextEditingController();
   final _directionsController = TextEditingController();
   final _latController = TextEditingController();
   final _lngController = TextEditingController();
@@ -61,6 +62,7 @@ class _FarmerLocationStepState extends State<FarmerLocationStep> {
       _communityController.text = widget.initialData!['community'] ?? '';
       _inspectorNameController.text =
           widget.initialData!['inspectorName'] ?? '';
+      _enumeratorIdController.text = widget.initialData!['enumeratorId'] ?? '';
       _directionsController.text = widget.initialData!['directions'] ?? '';
       if (widget.initialData!['lat'] != null) {
         _latController.text = widget.initialData!['lat'].toString();
@@ -81,6 +83,7 @@ class _FarmerLocationStepState extends State<FarmerLocationStep> {
     _districtController.dispose();
     _communityController.dispose();
     _inspectorNameController.dispose();
+    _enumeratorIdController.dispose();
     _directionsController.dispose();
     _latController.dispose();
     _lngController.dispose();
@@ -93,6 +96,7 @@ class _FarmerLocationStepState extends State<FarmerLocationStep> {
       'district': _districtController.text.trim(),
       'community': _communityController.text.trim(),
       'inspectorName': _inspectorNameController.text.trim(),
+      'enumeratorId': _enumeratorIdController.text.trim(),
       'directions': _directionsController.text.trim(),
       'lat': _latController.text.isNotEmpty
           ? double.tryParse(_latController.text)
@@ -368,6 +372,15 @@ class _FarmerLocationStepState extends State<FarmerLocationStep> {
                 }
                 return null;
               },
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _enumeratorIdController,
+              style: const TextStyle(fontSize: 14),
+              decoration: const InputDecoration(
+                labelText: 'Enumerator / Inspector ID (Optional)',
+                hintText: 'e.g., INSP-014',
+              ),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(

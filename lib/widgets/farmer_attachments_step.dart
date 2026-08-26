@@ -21,6 +21,7 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
   final ImagePicker _picker = ImagePicker();
   String? _nationalIdPath;
   String? _farmSelfiePath;
+  String? _signaturePath;
   List<String> _farmPhotosPaths = [];
   bool _consent = false;
 
@@ -30,6 +31,7 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
     if (widget.initialData != null) {
       _nationalIdPath = widget.initialData!['nationalIdPath'];
       _farmSelfiePath = widget.initialData!['farmSelfiePath'];
+      _signaturePath = widget.initialData!['signaturePath'];
       _farmPhotosPaths = List<String>.from(
         widget.initialData!['farmPhotosPaths'] ?? [],
       );
@@ -42,6 +44,7 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
     widget.onDataChanged({
       'nationalIdPath': _nationalIdPath,
       'farmSelfiePath': _farmSelfiePath,
+      'signaturePath': _signaturePath,
       'farmPhotosPaths': _farmPhotosPaths,
       'consent': _consent,
     });
@@ -117,6 +120,44 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error picking images: $e')));
+    }
+  }
+
+  Future<void> _pickSignature() async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85,
+      );
+      if (image != null) {
+        setState(() {
+          _signaturePath = image.path;
+          _updateData();
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error picking image: $e')));
+    }
+  }
+
+  Future<void> _pickSignatureFromGallery() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+      );
+      if (result != null && result.files.single.path != null) {
+        setState(() {
+          _signaturePath = result.files.single.path!;
+          _updateData();
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error picking file: $e')));
     }
   }
 
@@ -245,6 +286,74 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
                       onPressed: () {
                         setState(() {
                           _farmSelfiePath = null;
+                          _updateData();
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 24),
+          const Text(
+            'Farmer Signature (recommended)',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF334155),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _pickSignatureFromGallery,
+                  icon: const Icon(Icons.photo_library),
+                  label: const Text('Gallery'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _pickSignature,
+                  icon: const Icon(Icons.camera_alt),
+                  label: const Text('Camera'),
+                ),
+              ),
+            ],
+          ),
+          if (_signaturePath != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              height: 160,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
+                color: Colors.white,
+              ),
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.file(
+                      File(_signaturePath!),
+                      fit: BoxFit.contain,
+                      width: double.infinity,
+                    ),
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.black54,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _signaturePath = null;
                           _updateData();
                         });
                       },

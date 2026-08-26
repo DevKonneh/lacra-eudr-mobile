@@ -61,6 +61,10 @@ class OfflineSyncService {
       'district': data.district,
       'region': data.county,
       'consent': data.consent,
+      'cooperativeName': data.cooperativeName,
+      'cooperativeId': data.cooperativeId,
+      'enumeratorId': data.enumeratorId,
+      'enumeratorName': data.inspectorName,
     };
   }
 
@@ -81,6 +85,15 @@ class OfflineSyncService {
       'cropType': data.crop,
       if (location != null) 'location': location,
       if (data.areaHa != null) 'totalAreaHa': data.areaHa,
+      if (data.numberOfTrees != null) 'numberOfTrees': data.numberOfTrees,
+      if (data.yearsInCultivation != null)
+        'yearsInCultivation': data.yearsInCultivation,
+      if (data.harvestSeason != null) 'harvestSeason': data.harvestSeason,
+      if (data.averageYield != null) 'averageYield': data.averageYield,
+      if (data.buyers != null) 'buyers': data.buyers,
+      'useChemicals': data.useChemicals,
+      'extensionServices': data.extensionServices,
+      if (data.farmAddress != null) 'farmAddress': data.farmAddress,
     };
   }
 

@@ -43,6 +43,16 @@ class FarmerReviewStep extends StatelessWidget {
               _buildItem('Nationality', formData['nationality']),
               _buildItem('National ID', formData['nationalId'], optional: true),
               _buildItem('Email', formData['email'], optional: true),
+              _buildItem(
+                'Cooperative Name',
+                formData['cooperativeName'],
+                optional: true,
+              ),
+              _buildItem(
+                'Cooperative ID',
+                formData['cooperativeId'],
+                optional: true,
+              ),
             ],
           ),
 
@@ -58,6 +68,11 @@ class FarmerReviewStep extends StatelessWidget {
               _buildItem('District', formData['district'], optional: true),
               _buildItem('Community/Town/Village', formData['community']),
               _buildItem('Inspector Name', formData['inspectorName']),
+              _buildItem(
+                'Enumerator / Inspector ID',
+                formData['enumeratorId'],
+                optional: true,
+              ),
               _buildItem('Latitude', formData['lat']),
               _buildItem('Longitude', formData['lng']),
               _buildItem('Directions', formData['directions'], optional: true),
@@ -87,6 +102,40 @@ class FarmerReviewStep extends StatelessWidget {
               ),
               _buildItem('Unit', formData['farmUnitManual'], optional: true),
               _buildItem('Farm Notes', formData['farmNotes'], optional: true),
+              _buildItem(
+                'Number of Trees',
+                formData['numberOfTrees'],
+                optional: true,
+              ),
+              _buildItem(
+                'Years in Cultivation',
+                formData['yearsInCultivation'],
+                optional: true,
+              ),
+              _buildItem(
+                'Harvest Season',
+                formData['harvestSeason'],
+                optional: true,
+              ),
+              _buildItem(
+                'Average Yield',
+                formData['averageYield'],
+                optional: true,
+              ),
+              _buildItem('Buyers', formData['buyers'], optional: true),
+              _buildItem(
+                'Farm Address',
+                formData['farmAddress'],
+                optional: true,
+              ),
+              _buildStatusItem(
+                'Uses Fertilizers / Chemicals',
+                formData['useChemicals'] == true,
+              ),
+              _buildStatusItem(
+                'Access to Extension Services',
+                formData['extensionServices'] == true,
+              ),
             ],
           ),
 
@@ -407,6 +456,12 @@ class FarmerReviewStep extends StatelessWidget {
                   context,
                   'Farm Selfie',
                   formData['farmSelfiePath'],
+                ),
+                const SizedBox(height: 12),
+                _buildImagePreview(
+                  context,
+                  'Farmer Signature',
+                  formData['signaturePath'],
                 ),
                 const SizedBox(height: 12),
                 _buildMultipleImagesPreview(
