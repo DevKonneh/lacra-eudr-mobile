@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kDebugMode;
@@ -7,6 +8,20 @@ import '../models/farmer_registration_model.dart';
 import '../models/farmer_record_model.dart';
 
 class ApiService {
+  // Some networks (certain mobile carriers, restrictive Wi-Fi/firewalls)
+  // cannot reach Render's Cloudflare-fronted edge at all - the OS-level
+  // socket timeout for that can take 60-120+ seconds before surfacing an
+  // error, leaving the inspector staring at a frozen "Login"/"Submit"
+  // button in the field. These explicit, shorter timeouts fail fast with
+  // a clear, actionable message instead.
+  static const Duration _requestTimeout = Duration(seconds: 20);
+  static const Duration _uploadTimeout = Duration(seconds: 60);
+
+  static const String _networkUnreachableMessage =
+      'Can\'t reach the server. This can happen on some mobile networks or '
+      'Wi-Fi that block the connection. Please try switching networks '
+      '(e.g. Wi-Fi \u2194 mobile data) and try again.';
+
   // LACRA EUDR backend, deployed on Render.com (Docker web service + managed
   // Postgres). Used by both native Android/iOS builds and the Flutter Web
   // preview — the backend's CORS config (see src/index.ts on the server)
@@ -38,11 +53,9 @@ class ApiService {
 
       _log('API REQUEST - Inspector Login: POST $url (email: $email)');
 
-      final response = await http.post(
-        Uri.parse(url),
-        headers: headers,
-        body: body,
-      );
+      final response = await http
+          .post(Uri.parse(url), headers: headers, body: body)
+          .timeout(_requestTimeout);
 
       _log('API RESPONSE - Inspector Login: ${response.statusCode}');
 
@@ -69,11 +82,15 @@ class ApiService {
           errors.isNotEmpty ? errors.join(', ') : (message ?? 'Login failed'),
         );
       }
+    } on TimeoutException {
+      throw Exception(_networkUnreachableMessage);
+    } on SocketException {
+      throw Exception(_networkUnreachableMessage);
     } catch (e) {
       if (e is Exception) {
         rethrow;
       }
-      throw Exception('Network error: ${e.toString()}');
+      throw Exception(_networkUnreachableMessage);
     }
   }
 
@@ -178,8 +195,9 @@ class ApiService {
         '(${request.fields.length} fields, ${fileNames.length} files)',
       );
 
-      // Send request
-      final streamedResponse = await request.send();
+      // Send request (uploads can take longer than a plain JSON call since
+      // they include photos/signature - use the longer upload timeout).
+      final streamedResponse = await request.send().timeout(_uploadTimeout);
       final response = await http.Response.fromStream(streamedResponse);
 
       _log('API RESPONSE - Register Farmer: ${response.statusCode}');
@@ -191,11 +209,15 @@ class ApiService {
         final errorData = jsonDecode(response.body);
         throw Exception(errorData['message'] ?? 'Farmer registration failed');
       }
+    } on TimeoutException {
+      throw Exception(_networkUnreachableMessage);
+    } on SocketException {
+      throw Exception(_networkUnreachableMessage);
     } catch (e) {
       if (e is Exception) {
         rethrow;
       }
-      throw Exception('Network error: ${e.toString()}');
+      throw Exception(_networkUnreachableMessage);
     }
   }
 
@@ -261,7 +283,7 @@ class ApiService {
         '(${pointsMeta.length} points, $filesAdded photos)',
       );
 
-      final streamedResponse = await request.send();
+      final streamedResponse = await request.send().timeout(_uploadTimeout);
       final response = await http.Response.fromStream(streamedResponse);
 
       _log('API RESPONSE - Add Boundary Evidence: ${response.statusCode}');
@@ -274,11 +296,15 @@ class ApiService {
           errorData['message'] ?? 'Failed to save boundary evidence',
         );
       }
+    } on TimeoutException {
+      throw Exception(_networkUnreachableMessage);
+    } on SocketException {
+      throw Exception(_networkUnreachableMessage);
     } catch (e) {
       if (e is Exception) {
         rethrow;
       }
-      throw Exception('Network error: ${e.toString()}');
+      throw Exception(_networkUnreachableMessage);
     }
   }
 
@@ -290,11 +316,13 @@ class ApiService {
       final url = '$baseUrl/auth/forget-password';
       _log('API REQUEST - Forgot Password: POST $url (email: $email)');
 
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email}),
-      );
+      final response = await http
+          .post(
+            Uri.parse(url),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email}),
+          )
+          .timeout(_requestTimeout);
 
       _log('API RESPONSE - Forgot Password: ${response.statusCode}');
 
@@ -308,11 +336,15 @@ class ApiService {
               : (message ?? 'Failed to send verification code'),
         );
       }
+    } on TimeoutException {
+      throw Exception(_networkUnreachableMessage);
+    } on SocketException {
+      throw Exception(_networkUnreachableMessage);
     } catch (e) {
       if (e is Exception) {
         rethrow;
       }
-      throw Exception('Network error: ${e.toString()}');
+      throw Exception(_networkUnreachableMessage);
     }
   }
 
@@ -326,15 +358,17 @@ class ApiService {
       final url = '$baseUrl/auth/reset-password';
       _log('API REQUEST - Reset Password: POST $url (email: $email)');
 
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': email,
-          'verificationCode': verificationCode,
-          'newPassword': newPassword,
-        }),
-      );
+      final response = await http
+          .post(
+            Uri.parse(url),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'email': email,
+              'verificationCode': verificationCode,
+              'newPassword': newPassword,
+            }),
+          )
+          .timeout(_requestTimeout);
 
       _log('API RESPONSE - Reset Password: ${response.statusCode}');
 
@@ -348,11 +382,15 @@ class ApiService {
               : (message ?? 'Failed to reset password'),
         );
       }
+    } on TimeoutException {
+      throw Exception(_networkUnreachableMessage);
+    } on SocketException {
+      throw Exception(_networkUnreachableMessage);
     } catch (e) {
       if (e is Exception) {
         rethrow;
       }
-      throw Exception('Network error: ${e.toString()}');
+      throw Exception(_networkUnreachableMessage);
     }
   }
 
@@ -369,7 +407,9 @@ class ApiService {
 
       _log('API REQUEST - Get Farmers: GET $url');
 
-      final response = await http.get(Uri.parse(url), headers: headers);
+      final response = await http
+          .get(Uri.parse(url), headers: headers)
+          .timeout(_requestTimeout);
 
       _log('API RESPONSE - Get Farmers: ${response.statusCode}');
 
@@ -390,11 +430,15 @@ class ApiService {
               : (message ?? 'Failed to load farmers'),
         );
       }
+    } on TimeoutException {
+      throw Exception(_networkUnreachableMessage);
+    } on SocketException {
+      throw Exception(_networkUnreachableMessage);
     } catch (e) {
       if (e is Exception) {
         rethrow;
       }
-      throw Exception('Network error: ${e.toString()}');
+      throw Exception(_networkUnreachableMessage);
     }
   }
 
@@ -413,7 +457,9 @@ class ApiService {
 
       _log('API REQUEST - Get Farmer: GET $url');
 
-      final response = await http.get(Uri.parse(url), headers: headers);
+      final response = await http
+          .get(Uri.parse(url), headers: headers)
+          .timeout(_requestTimeout);
 
       _log('API RESPONSE - Get Farmer: ${response.statusCode}');
 
@@ -429,11 +475,15 @@ class ApiService {
               : (message ?? 'Failed to load farmer'),
         );
       }
+    } on TimeoutException {
+      throw Exception(_networkUnreachableMessage);
+    } on SocketException {
+      throw Exception(_networkUnreachableMessage);
     } catch (e) {
       if (e is Exception) {
         rethrow;
       }
-      throw Exception('Network error: ${e.toString()}');
+      throw Exception(_networkUnreachableMessage);
     }
   }
 
@@ -459,11 +509,13 @@ class ApiService {
         '(${farms.length} farm(s) attached)',
       );
 
-      final response = await http.post(
-        Uri.parse(url),
-        headers: headers,
-        body: jsonEncode({'farmer': farmer, 'farms': farms}),
-      );
+      final response = await http
+          .post(
+            Uri.parse(url),
+            headers: headers,
+            body: jsonEncode({'farmer': farmer, 'farms': farms}),
+          )
+          .timeout(_requestTimeout);
 
       _log('API RESPONSE - Offline Sync Farmer: ${response.statusCode}');
 
@@ -479,11 +531,15 @@ class ApiService {
               : (message ?? 'Failed to sync farmer'),
         );
       }
+    } on TimeoutException {
+      throw Exception(_networkUnreachableMessage);
+    } on SocketException {
+      throw Exception(_networkUnreachableMessage);
     } catch (e) {
       if (e is Exception) {
         rethrow;
       }
-      throw Exception('Network error: ${e.toString()}');
+      throw Exception(_networkUnreachableMessage);
     }
   }
 }
