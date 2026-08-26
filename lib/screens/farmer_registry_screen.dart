@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'dart:convert';
 import '../models/farmer_registration_model.dart';
 import '../services/api_service.dart';
@@ -11,6 +12,13 @@ import '../widgets/farm_map_widget.dart';
 import '../widgets/farmer_attachments_step.dart';
 import '../widgets/farmer_review_step.dart';
 import '../services/offline_sync_service.dart';
+
+void _log(String message) {
+  if (kDebugMode) {
+    // ignore: avoid_print
+    print('[FarmerRegistry] $message');
+  }
+}
 
 class FarmerRegistryScreen extends StatefulWidget {
   const FarmerRegistryScreen({super.key});
@@ -202,6 +210,7 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
         areaHa: _formData['areaHa']?.toString(),
         areaAc: _formData['areaAc']?.toString(),
         boundaryJson: _boundaryJson != null ? jsonEncode(_boundaryJson) : null,
+        boundaryEvidence: _boundaryEvidence,
         consent: _formData['consent'] ?? false,
         farmerPhotoPath: _formData['farmerPhotoPath'],
         nationalIdPath: _formData['nationalIdPath'],
@@ -228,10 +237,49 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
 
       try {
         final token = await _authService.getToken();
-        await _apiService.registerFarmer(
+        final response = await _apiService.registerFarmer(
           farmerData: farmerData,
           authToken: token,
         );
+
+        // If EUDR Point + Photo evidence was captured, attach it now via a
+        // follow-up call using the newly created farm's id (returned in
+        // response['data']['farmId']). This is best-effort: the farmer/farm
+        // record itself is already saved at this point, so a failure here
+        // is surfaced as a warning rather than blocking navigation - the
+        // inspector can re-attempt evidence upload later if needed.
+        if (_boundaryEvidence != null && _boundaryEvidence!.isNotEmpty) {
+          try {
+            final data = response['data'];
+            final farmId = data is Map ? data['farmId'] as String? : null;
+            if (farmId != null) {
+              await _apiService.addBoundaryEvidence(
+                farmId: farmId,
+                points: _boundaryEvidence!,
+                authToken: token,
+              );
+            } else {
+              _log(
+                'No farmId returned from registerFarmer - '
+                'boundary evidence not attached.',
+              );
+            }
+          } catch (evidenceError) {
+            _log('Failed to attach boundary evidence: $evidenceError');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Farmer registered, but boundary evidence photos '
+                    'failed to upload: ${evidenceError.toString()}',
+                  ),
+                  backgroundColor: Colors.orange,
+                  duration: const Duration(seconds: 5),
+                ),
+              );
+            }
+          }
+        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -324,6 +372,19 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
     });
   }
 
+  // Stores the EUDR Point + Photo per-point evidence (GPS + local photo
+  // path per point) captured by FarmMapWidget, so it can be uploaded via a
+  // follow-up API call once the farm is created in _submitForm().
+  void _updateBoundaryEvidence(List<Map<String, dynamic>> evidence) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _boundaryEvidence = evidence.isNotEmpty ? evidence : null;
+        });
+      }
+    });
+  }
+
   Widget _buildMappingStep() {
     return Column(
       children: [
@@ -360,6 +421,10 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
                             onAreaCalculated: (areaHa, areaAc) {
                               // This will be called during drawing
                             },
+                            onBoundaryEvidenceCaptured: (evidence) {
+                              // This will be called when EUDR Point + Photo
+                              // mode finishes
+                            },
                           ),
                         ),
                       );
@@ -371,6 +436,20 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
                         (result['areaHa'] as num).toDouble(),
                         (result['areaAc'] as num?)?.toDouble() ?? 0.0,
                       );
+                    }
+                    // EUDR Point + Photo mode returns per-point geotagged
+                    // evidence (each with a local photo path) alongside the
+                    // boundary - store it so it can be uploaded via a
+                    // follow-up call once the farm is created.
+                    final evidence = result['boundaryEvidence'];
+                    if (evidence != null && evidence is List) {
+                      _updateBoundaryEvidence(
+                        evidence
+                            .whereType<Map<String, dynamic>>()
+                            .toList(),
+                      );
+                    } else {
+                      _updateBoundaryEvidence(const []);
                     }
                   }
                 },
@@ -414,6 +493,17 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
                         Text(
                           'Area: ${_formData['areaHa']} hectares',
                           style: const TextStyle(fontSize: 12),
+                        ),
+                      if (_boundaryEvidence != null &&
+                          _boundaryEvidence!.isNotEmpty)
+                        Text(
+                          'EUDR evidence: ${_boundaryEvidence!.length} '
+                          'geotagged photos attached',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF2E7D32),
+                          ),
                         ),
                     ],
                   ),
