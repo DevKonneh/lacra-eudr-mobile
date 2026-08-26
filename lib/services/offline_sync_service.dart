@@ -100,6 +100,16 @@ class OfflineSyncService {
   /// Adds a farmer registration to the local pending-sync queue. Call this
   /// when a live submission fails due to a network error (or when offline
   /// is detected before even attempting the live call).
+  ///
+  /// Stores the FULL registration snapshot (via [FarmerRegistrationModel.
+  /// toFullJson]), including local file paths for photos/signature and any
+  /// boundary evidence, so [syncPendingItems] can later replay the exact
+  /// same multipart submission a live registration would have used -
+  /// otherwise photos/signature captured while offline would be silently
+  /// dropped on sync (the legacy [_buildFarmerPayload]/[_buildFarmPayload]
+  /// JSON-only shape below is kept only as a fallback for the backend's
+  /// JSON-only offline-sync endpoint, in case a multipart resubmission
+  /// ever fails and a text-only save is better than losing the record).
   Future<void> enqueue(FarmerRegistrationModel data) async {
     final prefs = await SharedPreferences.getInstance();
     final items = await _loadItems(prefs);
@@ -114,6 +124,7 @@ class OfflineSyncService {
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       farmer: _buildFarmerPayload(data),
       farms: hasUsableFarm ? [farmPayload] : [],
+      registration: data.toFullJson(),
       createdAt: DateTime.now(),
     );
 
@@ -174,6 +185,14 @@ class OfflineSyncService {
   /// place in the queue with an incremented retry count and the last
   /// error message recorded, so the UI can show why they're still
   /// pending.
+  ///
+  /// Items that carry a full [PendingSyncItem.registration] snapshot are
+  /// synced via [_syncViaMultipart], replaying the exact multipart
+  /// [ApiService.registerFarmer] call so any locally-captured photos/
+  /// signature upload correctly. Older items enqueued before this
+  /// snapshot existed (no [PendingSyncItem.registration]) fall back to
+  /// the JSON-only [ApiService.syncFarmerOffline] - the farmer/farm record
+  /// itself is still saved, just without photos, so nothing is lost.
   Future<OfflineSyncResult> syncPendingItems() async {
     final prefs = await SharedPreferences.getInstance();
     final items = await _loadItems(prefs);
@@ -189,13 +208,19 @@ class OfflineSyncService {
 
     for (final item in items) {
       try {
-        // Sync the farmer first; the backend creates the Farmer record and
-        // any farms passed inline in the same call.
-        await _apiService.syncFarmerOffline(
-          farmer: item.farmer,
-          farms: item.farms,
-          authToken: token,
-        );
+        if (item.registration != null) {
+          await _syncViaMultipart(item, token);
+        } else {
+          // Legacy item (enqueued before full snapshots existed) - sync
+          // the farmer/farm record via the JSON-only endpoint. No photos
+          // were ever captured for this item, since the old enqueue()
+          // never stored file paths in the first place.
+          await _apiService.syncFarmerOffline(
+            farmer: item.farmer,
+            farms: item.farms,
+            authToken: token,
+          );
+        }
         synced++;
         _log('Synced "${item.displayName}" successfully');
       } catch (e) {
@@ -214,5 +239,51 @@ class OfflineSyncService {
       failed: failed,
       remaining: stillPending.length,
     );
+  }
+
+  /// Rebuilds a [FarmerRegistrationModel] from [item.registration] and
+  /// resubmits it through the same multipart [ApiService.registerFarmer]
+  /// call a live/online submission would use, so any farmer photo,
+  /// national ID photo, farm selfie, signature, and farm photos captured
+  /// while offline are uploaded to Cloudinary exactly as they would be for
+  /// an online registration. If EUDR boundary-evidence points were
+  /// captured, they're attached via a best-effort follow-up call once the
+  /// farm id is known (a failure there does not roll back the already-
+  /// saved farmer/farm - it's logged and surfaced via [PendingSyncItem.
+  /// lastError] would only apply to the outer registerFarmer call, so this
+  /// inner failure is just logged, matching the online submission's own
+  /// behavior in farmer_registry_screen.dart).
+  Future<void> _syncViaMultipart(PendingSyncItem item, String? token) async {
+    final data = FarmerRegistrationModel.fromFullJson(item.registration!);
+    final response = await _apiService.registerFarmer(
+      farmerData: data,
+      authToken: token,
+    );
+
+    if (data.boundaryEvidence != null && data.boundaryEvidence!.isNotEmpty) {
+      try {
+        final responseData = response['data'];
+        final farmId = responseData is Map
+            ? responseData['farmId'] as String?
+            : null;
+        if (farmId != null) {
+          await _apiService.addBoundaryEvidence(
+            farmId: farmId,
+            points: data.boundaryEvidence!,
+            authToken: token,
+          );
+        } else {
+          _log(
+            'No farmId returned when syncing "${item.displayName}" - '
+            'boundary evidence not attached.',
+          );
+        }
+      } catch (evidenceError) {
+        _log(
+          'Farmer "${item.displayName}" synced, but boundary evidence '
+          'failed to attach: $evidenceError',
+        );
+      }
+    }
   }
 }

@@ -1,11 +1,24 @@
 /// Represents a farmer (+ optional farm) registration that was captured
 /// while the device had no network connectivity. It is persisted locally
-/// (see OfflineSyncService) and later synced to the backend via
-/// POST /farmer/offline-sync once connectivity is restored.
+/// (see OfflineSyncService) and later synced to the backend.
+///
+/// [registration] carries the FULL registration snapshot (including local
+/// file paths for photos/signature and boundary evidence) via
+/// FarmerRegistrationModel.toFullJson() - when present, syncing replays the
+/// exact same multipart ApiService.registerFarmer() call used for a live
+/// submission, so photos/signature upload correctly instead of being
+/// silently dropped.
+///
+/// [farmer]/[farms] are kept as a fallback JSON-only shape (no files) for
+/// backward compatibility with items already sitting in a device's queue
+/// from before [registration] existed - those are synced via the older
+/// JSON-only POST /farmers/offline-sync endpoint (no photos, but at least
+/// the farmer/farm record itself isn't lost).
 class PendingSyncItem {
   final String id;
   final Map<String, dynamic> farmer;
   final List<Map<String, dynamic>> farms;
+  final Map<String, dynamic>? registration;
   final DateTime createdAt;
   int retryCount;
   String? lastError;
@@ -14,6 +27,7 @@ class PendingSyncItem {
     required this.id,
     required this.farmer,
     required this.farms,
+    this.registration,
     required this.createdAt,
     this.retryCount = 0,
     this.lastError,
@@ -34,6 +48,9 @@ class PendingSyncItem {
       farms: (json['farms'] as List<dynamic>? ?? [])
           .map((f) => Map<String, dynamic>.from(f as Map))
           .toList(),
+      registration: json['registration'] != null
+          ? Map<String, dynamic>.from(json['registration'] as Map)
+          : null,
       createdAt: DateTime.parse(json['createdAt'] as String),
       retryCount: json['retryCount'] as int? ?? 0,
       lastError: json['lastError'] as String?,
@@ -45,6 +62,7 @@ class PendingSyncItem {
       'id': id,
       'farmer': farmer,
       'farms': farms,
+      if (registration != null) 'registration': registration,
       'createdAt': createdAt.toIso8601String(),
       'retryCount': retryCount,
       if (lastError != null) 'lastError': lastError,
