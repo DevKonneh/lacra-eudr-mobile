@@ -14,15 +14,52 @@ import 'auth_service.dart';
 /// (POST /farmer/offline-sync, POST /farm/offline-sync) once connectivity
 /// is restored, or when the user taps "Sync Now".
 ///
-/// Storage: shared_preferences, as a single JSON-encoded list under
-/// [_storageKey]. This is a lightweight local queue - no server round trip
-/// is required to enqueue an item, so registration can never be blocked by
-/// network state.
+/// Storage: shared_preferences, as a single JSON-encoded list under a
+/// per-logged-in-user key. This is a lightweight local queue - no server
+/// round trip is required to enqueue an item, so registration can never be
+/// blocked by network state.
+///
+/// IMPORTANT: Keys are scoped per logged-in user (by user id), not shared
+/// device-wide. Multiple inspectors commonly share the same physical
+/// device/app install, and shared_preferences data survives logout/login
+/// (AuthService.logout() only clears the auth token) - without per-user
+/// scoping, Inspector B logging in after Inspector A would see Inspector
+/// A's still-unsynced field registrations, which looks like "the app is
+/// showing another user's previous work". A one-time migration folds any
+/// pre-existing legacy (unscoped) queue into whichever user is currently
+/// logged in the first time this runs after the update, so no unsynced
+/// field data is silently lost.
 class OfflineSyncService {
-  static const String _storageKey = 'pending_farmer_sync_queue';
+  static const String _legacyKey = 'pending_farmer_sync_queue';
 
   final ApiService _apiService = ApiService();
   final AuthService _authService = AuthService();
+
+  Future<String?> _currentUserId() async {
+    final user = await _authService.getUser();
+    return user?.id;
+  }
+
+  String _keyFor(String? userId) =>
+      userId != null ? 'pending_farmer_sync_queue_$userId' : _legacyKey;
+
+  /// One-time migration: if this user has no per-user pending-sync data yet
+  /// but legacy (unscoped, pre-fix) data exists on the device, adopt it
+  /// into this user's bucket rather than leaving it invisible/orphaned,
+  /// then remove the legacy key so it isn't picked up again by a different
+  /// user.
+  Future<void> _migrateLegacyIfNeeded(
+    SharedPreferences prefs,
+    String key,
+  ) async {
+    if (key == _legacyKey) return; // no logged-in user to migrate into
+    if (prefs.containsKey(key)) return; // already has its own scoped data
+    final legacyRaw = prefs.getString(_legacyKey);
+    if (legacyRaw == null) return;
+    await prefs.setString(key, legacyRaw);
+    await prefs.remove(_legacyKey);
+    _log('Migrated legacy device-wide pending-sync queue into user-scoped storage');
+  }
 
   static void _log(String message) {
     if (kDebugMode) {
@@ -113,7 +150,9 @@ class OfflineSyncService {
   /// ever fails and a text-only save is better than losing the record).
   Future<void> enqueue(FarmerRegistrationModel data) async {
     final prefs = await SharedPreferences.getInstance();
-    final items = await _loadItems(prefs);
+    final key = _keyFor(await _currentUserId());
+    await _migrateLegacyIfNeeded(prefs, key);
+    final items = await _loadItems(prefs, key);
 
     final farmPayload = _buildFarmPayload(data);
     final hasUsableFarm =
@@ -130,7 +169,7 @@ class OfflineSyncService {
     );
 
     items.add(item);
-    await _saveItems(prefs, items);
+    await _saveItems(prefs, key, items);
     _log(
       'Enqueued pending registration for "${item.displayName}" '
       '(queue size: ${items.length})',
@@ -203,7 +242,9 @@ class OfflineSyncService {
 
   Future<List<PendingSyncItem>> getPendingItems() async {
     final prefs = await SharedPreferences.getInstance();
-    return _loadItems(prefs);
+    final key = _keyFor(await _currentUserId());
+    await _migrateLegacyIfNeeded(prefs, key);
+    return _loadItems(prefs, key);
   }
 
   Future<int> pendingCount() async {
@@ -213,9 +254,10 @@ class OfflineSyncService {
 
   Future<void> removeItem(String id) async {
     final prefs = await SharedPreferences.getInstance();
-    final items = await _loadItems(prefs);
+    final key = _keyFor(await _currentUserId());
+    final items = await _loadItems(prefs, key);
     items.removeWhere((i) => i.id == id);
-    await _saveItems(prefs, items);
+    await _saveItems(prefs, key, items);
     // Discarded locally by the inspector - stop showing it as "still
     // offline" in admin visibility.
     unawaited(_resolveShadowRecord(id));
@@ -223,11 +265,15 @@ class OfflineSyncService {
 
   Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_storageKey);
+    final key = _keyFor(await _currentUserId());
+    await prefs.remove(key);
   }
 
-  Future<List<PendingSyncItem>> _loadItems(SharedPreferences prefs) async {
-    final raw = prefs.getString(_storageKey);
+  Future<List<PendingSyncItem>> _loadItems(
+    SharedPreferences prefs,
+    String key,
+  ) async {
+    final raw = prefs.getString(key);
     if (raw == null || raw.isEmpty) return [];
     try {
       final decoded = jsonDecode(raw) as List<dynamic>;
@@ -242,10 +288,11 @@ class OfflineSyncService {
 
   Future<void> _saveItems(
     SharedPreferences prefs,
+    String key,
     List<PendingSyncItem> items,
   ) async {
     final encoded = jsonEncode(items.map((i) => i.toJson()).toList());
-    await prefs.setString(_storageKey, encoded);
+    await prefs.setString(key, encoded);
   }
 
   /// Attempts to sync every pending item to the backend. Items that
@@ -263,7 +310,9 @@ class OfflineSyncService {
   /// itself is still saved, just without photos, so nothing is lost.
   Future<OfflineSyncResult> syncPendingItems() async {
     final prefs = await SharedPreferences.getInstance();
-    final items = await _loadItems(prefs);
+    final key = _keyFor(await _currentUserId());
+    await _migrateLegacyIfNeeded(prefs, key);
+    final items = await _loadItems(prefs, key);
 
     if (items.isEmpty) {
       return const OfflineSyncResult(synced: 0, failed: 0, remaining: 0);
@@ -322,7 +371,7 @@ class OfflineSyncService {
       }
     }
 
-    await _saveItems(prefs, stillPending);
+    await _saveItems(prefs, key, stillPending);
 
     return OfflineSyncResult(
       synced: synced,
