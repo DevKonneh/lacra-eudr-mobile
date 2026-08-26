@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>LACRA</string>
+	<string>LACRA Farm Mapping Tools</string>
 	<key>NSCameraUsageDescription</key>
 	<string>This app needs access to the camera to scan QR codes for farmer and batch details.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
@@ -23,7 +23,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>inspector_app</string>
+	<string>LACRA Farm Mapping Tools</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

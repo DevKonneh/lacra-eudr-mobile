@@ -21,7 +21,7 @@ class InspectorApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'LACRA',
+      title: 'LACRA Farm Mapping Tools',
       theme: AppTheme.lightTheme,
       debugShowCheckedModeBanner: false,
       onGenerateRoute: (settings) {
