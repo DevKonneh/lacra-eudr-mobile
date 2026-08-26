@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../routes/app_routes.dart';
 import 'farmer_registry_screen.dart';
 import 'farmers_list_screen.dart';
+import 'create_inspector_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -16,11 +17,22 @@ class _DashboardScreenState extends State<DashboardScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _authService = AuthService();
+  bool _isAdmin = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    final user = await _authService.getUser();
+    if (mounted && user != null) {
+      setState(() {
+        _isAdmin = user.role.toUpperCase() == 'ADMIN';
+      });
+    }
   }
 
   @override
@@ -133,6 +145,21 @@ class _DashboardScreenState extends State<DashboardScreen>
       appBar: AppBar(
         title: const Text('LACRA Dashboard'),
         actions: [
+          // Admin-only: create new Inspector accounts from the field, since
+          // multiple people use this app and admins need a quick way to
+          // provision logins without the web admin panel.
+          if (_isAdmin)
+            IconButton(
+              icon: const Icon(Icons.person_add_alt_1),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const CreateInspectorScreen(),
+                  ),
+                );
+              },
+              tooltip: 'Create Inspector',
+            ),
           IconButton(
             icon: const Icon(Icons.cloud_sync_outlined),
             onPressed: () {

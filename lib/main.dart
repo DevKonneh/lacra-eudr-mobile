@@ -10,6 +10,7 @@ import 'screens/dashboard_screen.dart';
 import 'screens/qr_scanner_screen.dart';
 import 'screens/webview_screen.dart';
 import 'screens/pending_sync_screen.dart';
+import 'screens/create_inspector_screen.dart';
 
 void main() {
   runApp(const InspectorApp());
@@ -51,6 +52,10 @@ class InspectorApp extends StatelessWidget {
             );
           case AppRoutes.pendingSync:
             return MaterialPageRoute(builder: (_) => const PendingSyncScreen());
+          case AppRoutes.createInspector:
+            return MaterialPageRoute(
+              builder: (_) => const CreateInspectorScreen(),
+            );
           default:
             return MaterialPageRoute(builder: (_) => const LoginScreen());
         }

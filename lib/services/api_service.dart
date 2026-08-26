@@ -349,6 +349,59 @@ class ApiService {
     }
   }
 
+  /// Calls POST /users (admin-only on the backend) to create a new INSPECTOR
+  /// account. Used by CreateInspectorScreen - only ADMIN accounts can reach
+  /// that screen, and the backend independently enforces the same
+  /// restriction via authMiddleware([UserRole.ADMIN]) on /api/users.
+  Future<void> createInspector({
+    required String name,
+    required String email,
+    required String password,
+    required String? authToken,
+  }) async {
+    try {
+      final url = '$baseUrl/users';
+      final headers = {'Content-Type': 'application/json'};
+      if (authToken != null) {
+        headers['Authorization'] = 'Bearer $authToken';
+      }
+      final body = jsonEncode({
+        'name': name,
+        'email': email,
+        'password': password,
+        'roleType': 'INSPECTOR',
+      });
+
+      _log('API REQUEST - Create Inspector: POST $url (email: $email)');
+
+      final response = await http
+          .post(Uri.parse(url), headers: headers, body: body)
+          .timeout(_requestTimeout);
+
+      _log('API RESPONSE - Create Inspector: ${response.statusCode}');
+
+      final jsonData = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        final errors = jsonData['errors'];
+        final message = jsonData['message'] as String?;
+        throw Exception(
+          (errors is List && errors.isNotEmpty)
+              ? errors.join(', ')
+              : (message ?? 'Failed to create inspector account'),
+        );
+      }
+    } on TimeoutException {
+      throw Exception(_networkUnreachableMessage);
+    } on SocketException {
+      throw Exception(_networkUnreachableMessage);
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception(_networkUnreachableMessage);
+    }
+  }
+
   /// Calls POST /auth/forget-password with {email}.
   /// Backend always returns success (even if the account doesn't exist)
   /// to prevent user enumeration, so this only throws on network/server errors.
