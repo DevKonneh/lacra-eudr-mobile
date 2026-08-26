@@ -218,6 +218,11 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
         farmPhotosPaths: _formData['farmPhotosPaths'] != null
             ? List<String>.from(_formData['farmPhotosPaths'])
             : null,
+        complianceDocuments: _formData['complianceDocuments'] != null
+            ? (_formData['complianceDocuments'] as List)
+                  .map((e) => Map<String, String>.from(e as Map))
+                  .toList()
+            : null,
         cooperativeName: _formData['cooperativeName'],
         cooperativeId: _formData['cooperativeId'],
         enumeratorId: _formData['enumeratorId'],

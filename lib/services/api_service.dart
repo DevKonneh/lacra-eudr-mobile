@@ -94,6 +94,15 @@ class ApiService {
     }
   }
 
+  /// Returns the file extension (including the leading dot) from [path],
+  /// or '.jpg' if none is present - used so compliance documents keep their
+  /// original type (e.g. PDFs) instead of always being renamed to .jpg.
+  String _extensionOf(String path) {
+    final lastDot = path.lastIndexOf('.');
+    if (lastDot == -1 || lastDot == path.length - 1) return '.jpg';
+    return path.substring(lastDot);
+  }
+
   Future<Map<String, dynamic>> registerFarmer({
     required FarmerRegistrationModel farmerData,
     required String? authToken,
@@ -187,6 +196,38 @@ class ApiService {
             );
             fileNames.add('farmPhotos[$i]: ${file.path}');
           }
+        }
+      }
+
+      // EUDR compliance documents (National ID, Land Deed, Lease Agreement,
+      // Customary/Community Authorization, Cooperative Membership Document).
+      // Sent as multiple 'complianceDocuments' files, with a parallel JSON
+      // array of their types (same order) so the backend can tag each one
+      // correctly - see AuthController.registerFarmer's handling of
+      // 'complianceDocTypes'.
+      if (farmerData.complianceDocuments != null &&
+          farmerData.complianceDocuments!.isNotEmpty) {
+        final docTypes = <String>[];
+        for (int i = 0; i < farmerData.complianceDocuments!.length; i++) {
+          final doc = farmerData.complianceDocuments![i];
+          final path = doc['path'];
+          final type = doc['type'];
+          if (path == null || type == null) continue;
+          final file = File(path);
+          if (await file.exists()) {
+            request.files.add(
+              await http.MultipartFile.fromPath(
+                'complianceDocuments',
+                path,
+                filename: 'compliance_doc_$i${_extensionOf(path)}',
+              ),
+            );
+            docTypes.add(type);
+            fileNames.add('complianceDocuments[$i] ($type): $path');
+          }
+        }
+        if (docTypes.isNotEmpty) {
+          request.fields['complianceDocTypes'] = jsonEncode(docTypes);
         }
       }
 

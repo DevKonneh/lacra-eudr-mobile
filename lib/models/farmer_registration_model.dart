@@ -67,6 +67,11 @@ class FarmerRegistrationModel {
   final String? signaturePath;
   final List<String>? farmPhotosPaths;
 
+  // EUDR compliance documents (National ID, Land Deed, Lease Agreement,
+  // Customary/Community Authorization, Cooperative Membership Document).
+  // Each entry: {'type': <DocumentType label>, 'path': <local file path>}.
+  final List<Map<String, String>>? complianceDocuments;
+
   FarmerRegistrationModel({
     required this.fullName,
     required this.gender,
@@ -112,6 +117,7 @@ class FarmerRegistrationModel {
     this.farmSelfiePath,
     this.signaturePath,
     this.farmPhotosPaths,
+    this.complianceDocuments,
   });
 
   Map<String, dynamic> toJson() {
@@ -215,6 +221,7 @@ class FarmerRegistrationModel {
       'farmSelfiePath': farmSelfiePath,
       'signaturePath': signaturePath,
       'farmPhotosPaths': farmPhotosPaths,
+      'complianceDocuments': complianceDocuments,
     };
   }
 
@@ -272,6 +279,9 @@ class FarmerRegistrationModel {
       farmPhotosPaths: (json['farmPhotosPaths'] as List<dynamic>?)
           ?.map((e) => e as String)
           .toList(),
+      complianceDocuments: (json['complianceDocuments'] as List<dynamic>?)
+          ?.map((e) => Map<String, String>.from(e as Map))
+          .toList(),
     );
   }
 
@@ -321,6 +331,7 @@ class FarmerRegistrationModel {
     String? farmSelfiePath,
     String? signaturePath,
     List<String>? farmPhotosPaths,
+    List<Map<String, String>>? complianceDocuments,
   }) {
     return FarmerRegistrationModel(
       fullName: fullName ?? this.fullName,
@@ -367,6 +378,7 @@ class FarmerRegistrationModel {
       farmSelfiePath: farmSelfiePath ?? this.farmSelfiePath,
       signaturePath: signaturePath ?? this.signaturePath,
       farmPhotosPaths: farmPhotosPaths ?? this.farmPhotosPaths,
+      complianceDocuments: complianceDocuments ?? this.complianceDocuments,
     );
   }
 }

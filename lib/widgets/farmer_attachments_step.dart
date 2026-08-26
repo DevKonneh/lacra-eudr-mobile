@@ -17,6 +17,19 @@ class FarmerAttachmentsStep extends StatefulWidget {
   State<FarmerAttachmentsStep> createState() => _FarmerAttachmentsStepState();
 }
 
+/// EUDR due-diligence compliance documents collected alongside the farmer's
+/// photos - these prove land rights/affiliation, distinct from the basic
+/// "National ID photo" already captured above. Backend enum values live in
+/// FarmDocument.ts's DocumentType - keep the label strings below IDENTICAL
+/// to those enum values, since they're sent as-is in complianceDocTypes.
+const List<String> kComplianceDocumentTypes = [
+  'National ID / Identification Document',
+  'Land Deed / Land Ownership Document',
+  'Lease / Land-Use Agreement',
+  'Customary or Community Land Authorization',
+  'Cooperative/Association Membership Document',
+];
+
 class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
   final ImagePicker _picker = ImagePicker();
   String? _nationalIdPath;
@@ -24,6 +37,9 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
   String? _signaturePath;
   List<String> _farmPhotosPaths = [];
   bool _consent = false;
+  // Compliance document type -> local file path. Only types the inspector
+  // actually picked a file for are present as keys.
+  final Map<String, String> _complianceDocs = {};
 
   @override
   void initState() {
@@ -36,6 +52,15 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
         widget.initialData!['farmPhotosPaths'] ?? [],
       );
       _consent = widget.initialData!['consent'] ?? false;
+      final existingDocs = widget.initialData!['complianceDocuments'];
+      if (existingDocs is List) {
+        for (final entry in existingDocs) {
+          if (entry is Map && entry['type'] != null && entry['path'] != null) {
+            _complianceDocs[entry['type'].toString()] = entry['path']
+                .toString();
+          }
+        }
+      }
     }
     _updateData();
   }
@@ -47,6 +72,37 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
       'signaturePath': _signaturePath,
       'farmPhotosPaths': _farmPhotosPaths,
       'consent': _consent,
+      'complianceDocuments': _complianceDocs.entries
+          .map((e) => {'type': e.key, 'path': e.value})
+          .toList(),
+    });
+  }
+
+  Future<void> _pickComplianceDoc(String type) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
+        allowMultiple: false,
+      );
+      if (result != null && result.files.single.path != null) {
+        setState(() {
+          _complianceDocs[type] = result.files.single.path!;
+          _updateData();
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error picking document: $e')));
+    }
+  }
+
+  void _removeComplianceDoc(String type) {
+    setState(() {
+      _complianceDocs.remove(type);
+      _updateData();
     });
   }
 
@@ -229,6 +285,126 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
             ),
           ],
           const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFBFDBFE)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.folder_copy_outlined,
+                  color: Color(0xFF2563EB),
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Compliance Documents (recommended)',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1E40AF),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Upload a photo or PDF of any documents the farmer '
+                        'has available. Not all documents will apply to '
+                        'every farmer - upload whichever are relevant.',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: Color(0xFF1E3A8A),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...kComplianceDocumentTypes.map((type) {
+            final path = _complianceDocs[type];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: path != null
+                      ? Colors.green.shade50
+                      : Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: path != null
+                        ? Colors.green.shade200
+                        : Colors.grey.shade300,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      path != null
+                          ? Icons.check_circle
+                          : Icons.insert_drive_file_outlined,
+                      color: path != null ? Colors.green : Colors.grey,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            type,
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF334155),
+                            ),
+                          ),
+                          if (path != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                path.split('/').last,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF64748B),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    if (path != null)
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 18),
+                        onPressed: () => _removeComplianceDoc(type),
+                      )
+                    else
+                      TextButton.icon(
+                        onPressed: () => _pickComplianceDoc(type),
+                        icon: const Icon(Icons.upload_file, size: 16),
+                        label: const Text(
+                          'Upload',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          }),
+          const SizedBox(height: 12),
           const Text(
             'Upload Farmer on Farm Photo (recommended)',
             style: TextStyle(
