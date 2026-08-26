@@ -185,6 +185,89 @@ class ApiService {
     }
   }
 
+  /// Attaches EUDR-standard boundary evidence (per-point geotagged photos,
+  /// minimum 4 points) to an already-created farm via
+  /// PUT /farms/:id/boundary-evidence. Called as a follow-up right after
+  /// [registerFarmer] succeeds and returns the new farm's id - kept as a
+  /// separate call so the point/photo-matching logic lives only on the
+  /// backend's FarmController.addBoundaryEvidence, not duplicated here.
+  ///
+  /// [points] - list of {sequence, lat, lng, accuracy, timestamp, photoPath}
+  /// as produced by FarmMapWidget's Point + Photo mode. photoPath is a
+  /// local file path; it is uploaded as field `boundaryPhoto_<sequence>`.
+  Future<Map<String, dynamic>> addBoundaryEvidence({
+    required String farmId,
+    required List<Map<String, dynamic>> points,
+    required String? authToken,
+  }) async {
+    try {
+      final request = http.MultipartRequest(
+        'PUT',
+        Uri.parse('$baseUrl/farms/$farmId/boundary-evidence'),
+      );
+
+      if (authToken != null) {
+        request.headers['Authorization'] = 'Bearer $authToken';
+      }
+
+      // Metadata only (no photoPath - that goes as a file below).
+      final pointsMeta = points
+          .map(
+            (p) => {
+              'sequence': p['sequence'],
+              'lat': p['lat'],
+              'lng': p['lng'],
+              if (p['accuracy'] != null) 'accuracy': p['accuracy'],
+              if (p['timestamp'] != null) 'timestamp': p['timestamp'],
+            },
+          )
+          .toList();
+      request.fields['points'] = jsonEncode(pointsMeta);
+
+      int filesAdded = 0;
+      for (final p in points) {
+        final path = p['photoPath'] as String?;
+        final sequence = p['sequence'];
+        if (path == null) continue;
+        final file = File(path);
+        if (await file.exists()) {
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'boundaryPhoto_$sequence',
+              path,
+              filename: 'boundary_point_$sequence.jpg',
+            ),
+          );
+          filesAdded++;
+        }
+      }
+
+      _log(
+        'API REQUEST - Add Boundary Evidence: PUT ${request.url} '
+        '(${pointsMeta.length} points, $filesAdded photos)',
+      );
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      _log('API RESPONSE - Add Boundary Evidence: ${response.statusCode}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } else {
+        final errorData = jsonDecode(response.body);
+        throw Exception(
+          errorData['message'] ?? 'Failed to save boundary evidence',
+        );
+      }
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception('Network error: ${e.toString()}');
+    }
+  }
+
   /// Calls POST /auth/forget-password with {email}.
   /// Backend always returns success (even if the account doesn't exist)
   /// to prevent user enumeration, so this only throws on network/server errors.

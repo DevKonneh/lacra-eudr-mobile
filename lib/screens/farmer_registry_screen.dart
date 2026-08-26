@@ -28,6 +28,11 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
   final OfflineSyncService _offlineSyncService = OfflineSyncService();
   bool _isSubmitting = false;
   Map<String, dynamic>? _boundaryJson;
+  // EUDR Point + Photo mode evidence (set only when that mode was used in
+  // the Mapping step). Each entry: {sequence, lat, lng, accuracy,
+  // timestamp, photoPath}. Uploaded via a follow-up API call once the
+  // farm is created by _submitForm().
+  List<Map<String, dynamic>>? _boundaryEvidence;
 
   final List<Map<String, String>> _steps = const [
     {'title': 'Personal Info', 'hint': 'Farmer identity and contact'},

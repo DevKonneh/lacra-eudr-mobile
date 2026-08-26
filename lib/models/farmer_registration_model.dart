@@ -32,6 +32,11 @@ class FarmerRegistrationModel {
   final String? areaHa;
   final String? areaAc;
   final String? boundaryJson;
+  // EUDR Point + Photo mode: per-point geotagged evidence, each entry
+  // {sequence, lat, lng, accuracy, timestamp, photoPath (LOCAL file path)}.
+  // Attached via a follow-up PUT /farms/:id/boundary-evidence call after
+  // registration succeeds and the new farm's id is known.
+  final List<Map<String, dynamic>>? boundaryEvidence;
 
   // Consent
   final bool consent;
@@ -69,6 +74,7 @@ class FarmerRegistrationModel {
     this.areaHa,
     this.areaAc,
     this.boundaryJson,
+    this.boundaryEvidence,
     required this.consent,
     this.farmerPhotoPath,
     this.nationalIdPath,
@@ -136,6 +142,7 @@ class FarmerRegistrationModel {
     String? areaHa,
     String? areaAc,
     String? boundaryJson,
+    List<Map<String, dynamic>>? boundaryEvidence,
     bool? consent,
     String? farmerPhotoPath,
     String? nationalIdPath,
@@ -169,6 +176,7 @@ class FarmerRegistrationModel {
       areaHa: areaHa ?? this.areaHa,
       areaAc: areaAc ?? this.areaAc,
       boundaryJson: boundaryJson ?? this.boundaryJson,
+      boundaryEvidence: boundaryEvidence ?? this.boundaryEvidence,
       consent: consent ?? this.consent,
       farmerPhotoPath: farmerPhotoPath ?? this.farmerPhotoPath,
       nationalIdPath: nationalIdPath ?? this.nationalIdPath,
