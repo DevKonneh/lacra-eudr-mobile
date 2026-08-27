@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 
 class FarmerFarmDetailsStep extends StatefulWidget {
   final Function(Map<String, dynamic>) onDataChanged;
@@ -359,7 +360,7 @@ class _FarmerFarmDetailsStepState extends State<FarmerFarmDetailsStep> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF334155),
+                color: AppTheme.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -421,6 +422,7 @@ class _FarmerFarmDetailsStepState extends State<FarmerFarmDetailsStep> {
             const SizedBox(height: 8),
             CheckboxListTile(
               value: _useChemicals,
+              activeColor: AppTheme.primaryGreen,
               onChanged: (value) {
                 setState(() {
                   _useChemicals = value ?? false;
@@ -433,6 +435,7 @@ class _FarmerFarmDetailsStepState extends State<FarmerFarmDetailsStep> {
             ),
             CheckboxListTile(
               value: _extensionServices,
+              activeColor: AppTheme.primaryGreen,
               onChanged: (value) {
                 setState(() {
                   _extensionServices = value ?? false;

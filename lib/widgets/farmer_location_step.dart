@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/gps_service.dart';
 import '../services/auth_service.dart';
+import '../theme/app_theme.dart';
 
 class FarmerLocationStep extends StatefulWidget {
   final Function(Map<String, dynamic>) onDataChanged;
@@ -131,7 +132,7 @@ class _FarmerLocationStepState extends State<FarmerLocationStep> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('GPS coordinates captured successfully'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppTheme.success,
           ),
         );
       }
@@ -142,7 +143,7 @@ class _FarmerLocationStepState extends State<FarmerLocationStep> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to capture GPS: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppTheme.danger,
         ),
       );
     } finally {
@@ -237,7 +238,7 @@ class _FarmerLocationStepState extends State<FarmerLocationStep> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       filled: true,
-                      fillColor: Colors.grey.shade100,
+                      fillColor: AppTheme.background,
                     ),
                     onChanged: filterCounties,
                   ),
@@ -250,16 +251,16 @@ class _FarmerLocationStepState extends State<FarmerLocationStep> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
+                                const Icon(
                                   Icons.search_off,
                                   size: 48,
-                                  color: Colors.grey.shade400,
+                                  color: AppTheme.textMuted,
                                 ),
                                 const SizedBox(height: 16),
-                                Text(
+                                const Text(
                                   'No counties found',
                                   style: TextStyle(
-                                    color: Colors.grey.shade600,
+                                    color: AppTheme.textSecondary,
                                     fontSize: 16,
                                   ),
                                 ),
@@ -277,13 +278,11 @@ class _FarmerLocationStepState extends State<FarmerLocationStep> {
                                 trailing: isSelected
                                     ? const Icon(
                                         Icons.check,
-                                        color: Color(0xFF4CAF50),
+                                        color: AppTheme.primaryGreen,
                                       )
                                     : null,
                                 selected: isSelected,
-                                selectedTileColor: const Color(
-                                  0xFF4CAF50,
-                                ).withOpacity(0.1),
+                                selectedTileColor: AppTheme.paleGreen,
                                 onTap: () {
                                   setState(() {
                                     _countyController.text = county;
@@ -364,7 +363,7 @@ class _FarmerLocationStepState extends State<FarmerLocationStep> {
                 labelText: 'Enumerator / Inspector Name *',
                 hintText: 'Logged in user',
                 filled: true,
-                fillColor: Color(0xFFF5F5F5),
+                fillColor: AppTheme.background,
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
@@ -397,6 +396,7 @@ class _FarmerLocationStepState extends State<FarmerLocationStep> {
                 style: const TextStyle(fontSize: 14),
               ),
               style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryGreen,
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 minimumSize: const Size(0, 36),
               ),
@@ -409,12 +409,12 @@ class _FarmerLocationStepState extends State<FarmerLocationStep> {
                 Chip(
                   label: Text(_gpsStatus),
                   backgroundColor: _gpsStatus.contains('Captured')
-                      ? Colors.green.shade50
-                      : Colors.grey.shade200,
+                      ? AppTheme.successBg
+                      : AppTheme.divider,
                 ),
                 Chip(
                   label: Text(_gpsTime),
-                  backgroundColor: Colors.blue.shade50,
+                  backgroundColor: AppTheme.infoBg,
                 ),
               ],
             ),

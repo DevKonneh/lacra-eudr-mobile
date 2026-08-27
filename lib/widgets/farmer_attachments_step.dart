@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
+import '../theme/app_theme.dart';
 
 class FarmerAttachmentsStep extends StatefulWidget {
   final Function(Map<String, dynamic>) onDataChanged;
@@ -243,7 +244,7 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF334155),
+              color: AppTheme.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
@@ -251,19 +252,20 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
             onPressed: _pickNationalId,
             icon: const Icon(Icons.upload_file),
             label: const Text('Choose File'),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryGreen),
           ),
           if (_nationalIdPath != null) ...[
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.green.shade200),
+                color: AppTheme.successBg,
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                border: Border.all(color: AppTheme.success.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                  const Icon(Icons.check_circle, color: AppTheme.success, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -288,16 +290,16 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFBFDBFE)),
+              color: AppTheme.infoBg,
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              border: Border.all(color: AppTheme.info.withValues(alpha: 0.3)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Icon(
                   Icons.folder_copy_outlined,
-                  color: Color(0xFF2563EB),
+                  color: AppTheme.info,
                   size: 20,
                 ),
                 const SizedBox(width: 10),
@@ -310,7 +312,7 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF1E40AF),
+                          color: AppTheme.info,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -320,7 +322,7 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
                         'every farmer - upload whichever are relevant.',
                         style: TextStyle(
                           fontSize: 11.5,
-                          color: Color(0xFF1E3A8A),
+                          color: AppTheme.textSecondary,
                         ),
                       ),
                     ],
@@ -338,13 +340,13 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: path != null
-                      ? Colors.green.shade50
-                      : Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(10),
+                      ? AppTheme.successBg
+                      : AppTheme.background,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                   border: Border.all(
                     color: path != null
-                        ? Colors.green.shade200
-                        : Colors.grey.shade300,
+                        ? AppTheme.success.withValues(alpha: 0.3)
+                        : AppTheme.border,
                   ),
                 ),
                 child: Row(
@@ -353,7 +355,9 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
                       path != null
                           ? Icons.check_circle
                           : Icons.insert_drive_file_outlined,
-                      color: path != null ? Colors.green : Colors.grey,
+                      color: path != null
+                          ? AppTheme.success
+                          : AppTheme.textMuted,
                       size: 20,
                     ),
                     const SizedBox(width: 10),
@@ -366,7 +370,7 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
                             style: const TextStyle(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF334155),
+                              color: AppTheme.textPrimary,
                             ),
                           ),
                           if (path != null)
@@ -376,7 +380,7 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
                                 path.split('/').last,
                                 style: const TextStyle(
                                   fontSize: 11,
-                                  color: Color(0xFF64748B),
+                                  color: AppTheme.textSecondary,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -410,14 +414,14 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF334155),
+              color: AppTheme.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
-                child: ElevatedButton.icon(
+                child: OutlinedButton.icon(
                   onPressed: _pickFarmSelfieFromGallery,
                   icon: const Icon(Icons.photo_library),
                   label: const Text('Gallery'),
@@ -429,6 +433,7 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
                   onPressed: _pickFarmSelfie,
                   icon: const Icon(Icons.camera_alt),
                   label: const Text('Camera'),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryGreen),
                 ),
               ),
             ],
@@ -438,8 +443,8 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
             Container(
               height: 200,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                border: Border.all(color: AppTheme.border),
               ),
               child: Stack(
                 children: [
@@ -477,14 +482,14 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF334155),
+              color: AppTheme.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
-                child: ElevatedButton.icon(
+                child: OutlinedButton.icon(
                   onPressed: _pickSignatureFromGallery,
                   icon: const Icon(Icons.photo_library),
                   label: const Text('Gallery'),
@@ -496,6 +501,7 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
                   onPressed: _pickSignature,
                   icon: const Icon(Icons.camera_alt),
                   label: const Text('Camera'),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryGreen),
                 ),
               ),
             ],
@@ -505,9 +511,9 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
             Container(
               height: 160,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300),
-                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                border: Border.all(color: AppTheme.border),
+                color: AppTheme.surface,
               ),
               child: Stack(
                 children: [
@@ -545,7 +551,7 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF334155),
+              color: AppTheme.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
@@ -553,6 +559,7 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
             onPressed: _pickFarmPhotos,
             icon: const Icon(Icons.add_photo_alternate),
             label: const Text('Add Photos'),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryGreen),
           ),
           if (_farmPhotosPaths.isNotEmpty) ...[
             const SizedBox(height: 16),
@@ -567,7 +574,7 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
                       height: 100,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade300),
+                        border: Border.all(color: AppTheme.border),
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
@@ -585,7 +592,7 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
                         child: Container(
                           padding: const EdgeInsets.all(4),
                           decoration: const BoxDecoration(
-                            color: Colors.red,
+                            color: AppTheme.danger,
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
@@ -604,6 +611,7 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
           const SizedBox(height: 24),
           CheckboxListTile(
             value: _consent,
+            activeColor: AppTheme.primaryGreen,
             onChanged: (value) {
               setState(() {
                 _consent = value ?? false;
@@ -618,7 +626,7 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
           const SizedBox(height: 16),
           const Text(
             'Tip: Evidence photos are very important for verification and audits.',
-            style: TextStyle(fontSize: 12, color: Color(0xFF757575)),
+            style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
           ),
         ],
       ),

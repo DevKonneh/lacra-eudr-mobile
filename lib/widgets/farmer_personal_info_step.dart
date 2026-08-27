@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:intl/intl.dart';
+import '../theme/app_theme.dart';
 
 class FarmerPersonalInfoStep extends StatefulWidget {
   final Function(Map<String, dynamic>) onDataChanged;
@@ -328,9 +329,9 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Color(0xFF4CAF50),
+              primary: AppTheme.primaryGreen,
               onPrimary: Colors.white,
-              onSurface: Colors.black87,
+              onSurface: AppTheme.textPrimary,
             ),
           ),
           child: child!,
@@ -417,7 +418,7 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       filled: true,
-                      fillColor: Colors.grey.shade100,
+                      fillColor: AppTheme.background,
                     ),
                     onChanged: filterCountries,
                   ),
@@ -430,16 +431,16 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
+                                const Icon(
                                   Icons.search_off,
                                   size: 48,
-                                  color: Colors.grey.shade400,
+                                  color: AppTheme.textMuted,
                                 ),
                                 const SizedBox(height: 16),
-                                Text(
+                                const Text(
                                   'No countries found',
                                   style: TextStyle(
-                                    color: Colors.grey.shade600,
+                                    color: AppTheme.textSecondary,
                                     fontSize: 16,
                                   ),
                                 ),
@@ -457,13 +458,11 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
                                 trailing: isSelected
                                     ? const Icon(
                                         Icons.check,
-                                        color: Color(0xFF4CAF50),
+                                        color: AppTheme.primaryGreen,
                                       )
                                     : null,
                                 selected: isSelected,
-                                selectedTileColor: const Color(
-                                  0xFF4CAF50,
-                                ).withOpacity(0.1),
+                                selectedTileColor: AppTheme.paleGreen,
                                 onTap: () {
                                   setState(() {
                                     _nationalityController.text = nationality;
@@ -718,7 +717,7 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF334155),
+                color: AppTheme.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -745,14 +744,14 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF334155),
+                color: AppTheme.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
-                  child: ElevatedButton.icon(
+                  child: OutlinedButton.icon(
                     onPressed: _pickImageFromGallery,
                     icon: const Icon(Icons.photo_library, size: 18),
                     label: const Text(
@@ -761,7 +760,7 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
                     ),
-                    style: ElevatedButton.styleFrom(
+                    style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       minimumSize: const Size(0, 36),
                     ),
@@ -779,6 +778,7 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
                       maxLines: 1,
                     ),
                     style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryGreen,
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       minimumSize: const Size(0, 36),
                     ),
@@ -791,11 +791,11 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
               Container(
                 height: 200,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  border: Border.all(color: AppTheme.border),
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                   child: Image.file(File(_photoPath!), fit: BoxFit.cover),
                 ),
               ),
@@ -803,7 +803,7 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
             const SizedBox(height: 16),
             const Text(
               'Tip: On a phone/tablet, the camera option will appear automatically for photo capture.',
-              style: TextStyle(fontSize: 12, color: Color(0xFF757575)),
+              style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
             ),
           ],
         ),

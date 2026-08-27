@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'dart:io';
+import '../theme/app_theme.dart';
 
 class FarmerReviewStep extends StatelessWidget {
   final Map<String, dynamic> formData;
@@ -20,13 +21,13 @@ class FarmerReviewStep extends StatelessWidget {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF212121),
+              color: AppTheme.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
           const Text(
             'Please verify that all details are correct. You can go back to edit any section.',
-            style: TextStyle(fontSize: 14, color: Color(0xFF757575)),
+            style: TextStyle(fontSize: 14, color: AppTheme.textMuted),
           ),
           const SizedBox(height: 24),
 
@@ -167,16 +168,16 @@ class FarmerReviewStep extends StatelessWidget {
           ExpansionTile(
             title: const Text(
               'View Raw Data (for debugging)',
-              style: TextStyle(fontSize: 14, color: Color(0xFF757575)),
+              style: TextStyle(fontSize: 14, color: AppTheme.textMuted),
             ),
             leading: const Icon(Icons.code, size: 20),
             children: [
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(12),
-                  color: Colors.grey.shade50,
+                  border: Border.all(color: AppTheme.border),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  color: AppTheme.background,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -189,7 +190,7 @@ class FarmerReviewStep extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF334155),
+                            color: AppTheme.textPrimary,
                           ),
                         ),
                         IconButton(
@@ -206,7 +207,7 @@ class FarmerReviewStep extends StatelessWidget {
                               const SnackBar(
                                 content: Text('Payload copied to clipboard'),
                                 duration: Duration(seconds: 2),
-                                backgroundColor: Color(0xFF4CAF50),
+                                backgroundColor: AppTheme.success,
                               ),
                             );
                           },
@@ -218,9 +219,9 @@ class FarmerReviewStep extends StatelessWidget {
                       constraints: const BoxConstraints(maxHeight: 300),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade300),
+                        color: AppTheme.surface,
+                        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                        border: Border.all(color: AppTheme.border),
                       ),
                       child: SingleChildScrollView(
                         child: SelectableText(
@@ -228,7 +229,7 @@ class FarmerReviewStep extends StatelessWidget {
                           style: const TextStyle(
                             fontFamily: 'monospace',
                             fontSize: 11,
-                            color: Color(0xFF0b1220),
+                            color: AppTheme.textPrimary,
                           ),
                         ),
                       ),
@@ -253,39 +254,33 @@ class FarmerReviewStep extends StatelessWidget {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: AppTheme.border),
+        boxShadow: AppTheme.softShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF4CAF50).withOpacity(0.1),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
+            decoration: const BoxDecoration(
+              color: AppTheme.paleGreen,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(AppTheme.radiusMd),
+                topRight: Radius.circular(AppTheme.radiusMd),
               ),
             ),
             child: Row(
               children: [
-                Icon(icon, size: 20, color: const Color(0xFF4CAF50)),
+                Icon(icon, size: 20, color: AppTheme.primaryGreen),
                 const SizedBox(width: 8),
                 Text(
                   title,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF212121),
+                    color: AppTheme.textPrimary,
                   ),
                 ),
               ],
@@ -316,10 +311,10 @@ class FarmerReviewStep extends StatelessWidget {
             flex: 2,
             child: Text(
               label,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: Colors.grey.shade700,
+                color: AppTheme.textSecondary,
               ),
             ),
           ),
@@ -330,7 +325,7 @@ class FarmerReviewStep extends StatelessWidget {
               isEmpty ? (optional ? '—' : 'Not provided') : displayValue,
               style: TextStyle(
                 fontSize: 14,
-                color: isEmpty ? Colors.grey.shade400 : Colors.black87,
+                color: isEmpty ? AppTheme.textMuted : AppTheme.textPrimary,
                 fontStyle: isEmpty ? FontStyle.italic : FontStyle.normal,
               ),
             ),
@@ -350,10 +345,10 @@ class FarmerReviewStep extends StatelessWidget {
             flex: 2,
             child: Text(
               label,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: Colors.grey.shade700,
+                color: AppTheme.textSecondary,
               ),
             ),
           ),
@@ -365,9 +360,7 @@ class FarmerReviewStep extends StatelessWidget {
                 Icon(
                   isPresent ? Icons.check_circle : Icons.cancel,
                   size: 16,
-                  color: isPresent
-                      ? const Color(0xFF4CAF50)
-                      : Colors.grey.shade400,
+                  color: isPresent ? AppTheme.success : AppTheme.textMuted,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -375,7 +368,7 @@ class FarmerReviewStep extends StatelessWidget {
                     isPresent ? (extraInfo ?? 'Uploaded') : 'Not uploaded',
                     style: TextStyle(
                       fontSize: 14,
-                      color: isPresent ? Colors.black87 : Colors.grey.shade400,
+                      color: isPresent ? AppTheme.textPrimary : AppTheme.textMuted,
                       fontStyle: isPresent
                           ? FontStyle.normal
                           : FontStyle.italic,
@@ -393,27 +386,21 @@ class FarmerReviewStep extends StatelessWidget {
   Widget _buildAttachmentsSection(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: AppTheme.border),
+        boxShadow: AppTheme.softShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF4CAF50).withOpacity(0.1),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
+            decoration: const BoxDecoration(
+              color: AppTheme.paleGreen,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(AppTheme.radiusMd),
+                topRight: Radius.circular(AppTheme.radiusMd),
               ),
             ),
             child: Row(
@@ -421,7 +408,7 @@ class FarmerReviewStep extends StatelessWidget {
                 Icon(
                   Icons.attach_file,
                   size: 20,
-                  color: const Color(0xFF4CAF50),
+                  color: AppTheme.primaryGreen,
                 ),
                 const SizedBox(width: 8),
                 const Text(
@@ -429,7 +416,7 @@ class FarmerReviewStep extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF212121),
+                    color: AppTheme.textPrimary,
                   ),
                 ),
               ],
@@ -494,15 +481,15 @@ class FarmerReviewStep extends StatelessWidget {
             Icon(
               hasImage ? Icons.check_circle : Icons.cancel,
               size: 16,
-              color: hasImage ? const Color(0xFF4CAF50) : Colors.grey.shade400,
+              color: hasImage ? AppTheme.success : AppTheme.textMuted,
             ),
             const SizedBox(width: 8),
             Text(
               label,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: Colors.grey.shade700,
+                color: AppTheme.textSecondary,
               ),
             ),
           ],
@@ -515,8 +502,8 @@ class FarmerReviewStep extends StatelessWidget {
               height: 120,
               width: 120,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                border: Border.all(color: AppTheme.border),
                 image: DecorationImage(
                   image: FileImage(File(imagePath.toString())),
                   fit: BoxFit.cover,
@@ -524,8 +511,8 @@ class FarmerReviewStep extends StatelessWidget {
               ),
               child: Container(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  color: Colors.black.withOpacity(0.0),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                  color: Colors.black.withValues(alpha: 0.0),
                 ),
                 child: const Center(
                   child: Icon(
@@ -540,11 +527,11 @@ class FarmerReviewStep extends StatelessWidget {
           ),
         ] else ...[
           const SizedBox(height: 4),
-          Text(
+          const Text(
             'Not uploaded',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey.shade400,
+              color: AppTheme.textMuted,
               fontStyle: FontStyle.italic,
             ),
           ),
@@ -569,22 +556,22 @@ class FarmerReviewStep extends StatelessWidget {
             Icon(
               hasImages ? Icons.check_circle : Icons.cancel,
               size: 16,
-              color: hasImages ? const Color(0xFF4CAF50) : Colors.grey.shade400,
+              color: hasImages ? AppTheme.success : AppTheme.textMuted,
             ),
             const SizedBox(width: 8),
             Text(
               label,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: Colors.grey.shade700,
+                color: AppTheme.textSecondary,
               ),
             ),
             if (hasImages) ...[
               const SizedBox(width: 8),
               Text(
                 '(${imagePaths.length} photo(s))',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
               ),
             ],
           ],
@@ -601,8 +588,8 @@ class FarmerReviewStep extends StatelessWidget {
                   height: 80,
                   width: 80,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                    border: Border.all(color: AppTheme.border),
                     image: DecorationImage(
                       image: FileImage(File(path.toString())),
                       fit: BoxFit.cover,
@@ -610,8 +597,8 @@ class FarmerReviewStep extends StatelessWidget {
                   ),
                   child: Container(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      color: Colors.black.withOpacity(0.0),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                      color: Colors.black.withValues(alpha: 0.0),
                     ),
                     child: const Center(
                       child: Icon(
@@ -628,11 +615,11 @@ class FarmerReviewStep extends StatelessWidget {
           ),
         ] else ...[
           const SizedBox(height: 4),
-          Text(
+          const Text(
             'Not uploaded',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey.shade400,
+              color: AppTheme.textMuted,
               fontStyle: FontStyle.italic,
             ),
           ),
