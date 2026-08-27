@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import '../models/pending_sync_item.dart';
 import '../services/offline_sync_service.dart';
+import '../theme/app_theme.dart';
 import '../widgets/snapping_list_view.dart';
 
 /// Fixed row height for the snap-to-item pending-sync list below. This is
 /// taller than the other lists since these cards can show retry/error text.
-const double _kPendingSyncCardExtent = 168;
+const double _kPendingSyncCardExtent = 176;
 
 /// Shows farmer registrations that are queued locally because they were
 /// captured while offline (or the live submission failed due to a network
@@ -58,7 +59,7 @@ class _PendingSyncScreenState extends State<PendingSyncScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Still no internet connection. Try again later.'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppTheme.danger,
           ),
         );
       }
@@ -81,7 +82,9 @@ class _PendingSyncScreenState extends State<PendingSyncScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
-          backgroundColor: result.failed == 0 ? Colors.green : Colors.orange,
+          backgroundColor: result.failed == 0
+              ? AppTheme.success
+              : AppTheme.warning,
         ),
       );
     }
@@ -103,7 +106,10 @@ class _PendingSyncScreenState extends State<PendingSyncScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Discard', style: TextStyle(color: Colors.red)),
+            child: const Text(
+              'Discard',
+              style: TextStyle(color: AppTheme.danger),
+            ),
           ),
         ],
       ),
@@ -118,8 +124,12 @@ class _PendingSyncScreenState extends State<PendingSyncScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Text('Pending Sync'),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: AppTheme.primaryGradient),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -129,26 +139,39 @@ class _PendingSyncScreenState extends State<PendingSyncScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(color: AppTheme.primaryGreen),
+            )
           : _items.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.cloud_done,
-                    size: 72,
-                    color: Colors.green.shade300,
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: const BoxDecoration(
+                      color: AppTheme.successBg,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.cloud_done,
+                      size: 44,
+                      color: AppTheme.success,
+                    ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
                   const Text(
                     'All caught up!',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   const Text(
                     'No farmer registrations are waiting to sync.',
-                    style: TextStyle(color: Color(0xFF757575)),
+                    style: TextStyle(color: AppTheme.textSecondary),
                   ),
                 ],
               ),
@@ -156,80 +179,104 @@ class _PendingSyncScreenState extends State<PendingSyncScreen> {
           : SnappingListView<PendingSyncItem>(
               items: _items,
               itemExtent: _kPendingSyncCardExtent,
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               onRefresh: _loadItems,
               keyOf: (item) => item.id,
               itemBuilder: (context, item, index) {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: Card(
-                    margin: EdgeInsets.zero,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.cloud_off, color: Colors.orange),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  item.displayName,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppTheme.surface,
+                      borderRadius: BorderRadius.circular(
+                        AppTheme.radiusLg,
+                      ),
+                      border: Border.all(color: AppTheme.border),
+                      boxShadow: AppTheme.softShadow,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(7),
+                              decoration: const BoxDecoration(
+                                color: AppTheme.warningBg,
+                                shape: BoxShape.circle,
                               ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.delete_outline,
-                                  color: Colors.red,
-                                ),
-                                onPressed: () => _confirmDelete(item),
-                                tooltip: 'Discard',
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Captured: ${item.createdAt.toLocal()}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF757575),
-                            ),
-                          ),
-                          if (item.farms.isNotEmpty)
-                            Text(
-                              'Farm: ${item.farms.first['name'] ?? '-'}',
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          if (item.retryCount > 0) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              'Retry attempts: ${item.retryCount}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.orange,
+                              child: const Icon(
+                                Icons.cloud_off,
+                                color: AppTheme.warning,
+                                size: 18,
                               ),
                             ),
-                            if (item.lastError != null)
-                              Text(
-                                'Last error: ${item.lastError}',
-                                maxLines: 1,
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                item.displayName,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.red,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 15,
+                                  color: AppTheme.textPrimary,
                                 ),
                               ),
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: AppTheme.danger,
+                              ),
+                              onPressed: () => _confirmDelete(item),
+                              tooltip: 'Discard',
+                            ),
                           ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Captured: ${item.createdAt.toLocal()}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                        if (item.farms.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              'Farm: ${item.farms.first['name'] ?? '-'}',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                          ),
+                        if (item.retryCount > 0) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            'Retry attempts: ${item.retryCount}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.warning,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (item.lastError != null)
+                            Text(
+                              'Last error: ${item.lastError}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppTheme.danger,
+                              ),
+                            ),
                         ],
-                      ),
+                      ],
                     ),
                   ),
                 );
@@ -255,10 +302,6 @@ class _PendingSyncScreenState extends State<PendingSyncScreen> {
                         )
                       : const Icon(Icons.sync),
                   label: Text(_isSyncing ? 'Syncing...' : 'Sync Now'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    textStyle: const TextStyle(fontSize: 16),
-                  ),
                 ),
               ),
             ),

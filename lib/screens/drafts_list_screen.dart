@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import '../models/draft_item.dart';
 import '../services/draft_service.dart';
+import '../theme/app_theme.dart';
 import '../widgets/snapping_list_view.dart';
 import 'farmer_registry_screen.dart';
 
 /// Fixed row height for the snap-to-item draft list below.
-const double _kDraftCardExtent = 128;
+const double _kDraftCardExtent = 132;
 
 /// Lists farmer registrations the inspector saved as drafts (in-progress,
 /// not yet submitted). Tapping a draft resumes the registration wizard
@@ -70,7 +71,10 @@ class _DraftsListScreenState extends State<DraftsListScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Discard', style: TextStyle(color: Colors.red)),
+            child: const Text(
+              'Discard',
+              style: TextStyle(color: AppTheme.danger),
+            ),
           ),
         ],
       ),
@@ -97,8 +101,12 @@ class _DraftsListScreenState extends State<DraftsListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Text('Drafts'),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: AppTheme.primaryGradient),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -108,7 +116,9 @@ class _DraftsListScreenState extends State<DraftsListScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(color: AppTheme.primaryGreen),
+            )
           : _drafts.isEmpty
           ? Center(
               child: Padding(
@@ -116,17 +126,25 @@ class _DraftsListScreenState extends State<DraftsListScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      Icons.drafts_outlined,
-                      size: 72,
-                      color: Colors.grey.shade400,
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: const BoxDecoration(
+                        color: AppTheme.paleGreen,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.drafts_outlined,
+                        size: 44,
+                        color: AppTheme.primaryGreen,
+                      ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 18),
                     const Text(
                       'No saved drafts',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -134,7 +152,7 @@ class _DraftsListScreenState extends State<DraftsListScreen> {
                       'Tap "Save as Draft" while registering a farmer to '
                       'pick it up again later.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Color(0xFF757575)),
+                      style: TextStyle(color: AppTheme.textSecondary),
                     ),
                   ],
                 ),
@@ -143,61 +161,105 @@ class _DraftsListScreenState extends State<DraftsListScreen> {
           : SnappingListView<DraftItem>(
               items: _drafts,
               itemExtent: _kDraftCardExtent,
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               onRefresh: _loadDrafts,
               keyOf: (draft) => draft.id,
               itemBuilder: (context, draft, index) {
                 final totalSteps = draft.stepCompleted.length;
+                final progress = totalSteps == 0
+                    ? 0.0
+                    : draft.completedStepCount / totalSteps;
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Card(
-                    margin: EdgeInsets.zero,
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      leading: CircleAvatar(
-                        backgroundColor: const Color(
-                          0xFF4CAF50,
-                        ).withValues(alpha: 0.15),
-                        child: const Icon(
-                          Icons.edit_note,
-                          color: Color(0xFF388E3C),
-                        ),
-                      ),
-                      title: Text(
-                        draft.displayName,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 2),
-                          if (draft.locationSummary != null)
-                            Text(
-                              draft.locationSummary!,
-                              style: const TextStyle(fontSize: 13),
-                            ),
-                          Text(
-                            '${draft.completedStepCount}/$totalSteps steps '
-                            'completed · Updated ${_formatUpdatedAt(draft.updatedAt)}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF757575),
-                            ),
-                          ),
-                        ],
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(
-                          Icons.delete_outline,
-                          color: Colors.red,
-                        ),
-                        onPressed: () => _confirmDelete(draft),
-                        tooltip: 'Discard',
-                      ),
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Material(
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                       onTap: () => _resumeDraft(draft),
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusLg,
+                          ),
+                          border: Border.all(color: AppTheme.border),
+                          boxShadow: AppTheme.softShadow,
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: const BoxDecoration(
+                                color: AppTheme.paleGreen,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.edit_note,
+                                color: AppTheme.darkGreen,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    draft.displayName,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15,
+                                      color: AppTheme.textPrimary,
+                                    ),
+                                  ),
+                                  if (draft.locationSummary != null) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      draft.locationSummary!,
+                                      style: const TextStyle(
+                                        fontSize: 12.5,
+                                        color: AppTheme.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                  const SizedBox(height: 8),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: LinearProgressIndicator(
+                                      value: progress,
+                                      minHeight: 5,
+                                      backgroundColor: AppTheme.divider,
+                                      valueColor:
+                                          const AlwaysStoppedAnimation<Color>(
+                                            AppTheme.primaryGreen,
+                                          ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    '${draft.completedStepCount}/$totalSteps steps · '
+                                    'Updated ${_formatUpdatedAt(draft.updatedAt)}',
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      color: AppTheme.textMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: AppTheme.danger,
+                              ),
+                              onPressed: () => _confirmDelete(draft),
+                              tooltip: 'Discard',
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 );

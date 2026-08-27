@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import '../models/offline_submission_record.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../theme/app_theme.dart';
 import '../widgets/snapping_list_view.dart';
+import '../widgets/status_badge.dart';
 
 /// Fixed row height for the snap-to-item list below.
-const double _kOfflineSubmissionCardExtent = 148;
+const double _kOfflineSubmissionCardExtent = 152;
 
 /// Backend/admin visibility into farmer registrations that inspectors'
 /// devices have captured while offline (or whose live submission failed)
@@ -71,17 +73,6 @@ class _OfflineSubmissionsScreenState extends State<OfflineSubmissionsScreen> {
     }
   }
 
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'FAILED':
-        return Colors.red;
-      case 'SYNCED':
-        return Colors.green;
-      default:
-        return Colors.orange;
-    }
-  }
-
   String _formatTime(DateTime dt) {
     final local = dt.toLocal();
     final now = DateTime.now();
@@ -97,8 +88,12 @@ class _OfflineSubmissionsScreenState extends State<OfflineSubmissionsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Text('Unsynced Field Data'),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: AppTheme.primaryGradient),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -113,7 +108,9 @@ class _OfflineSubmissionsScreenState extends State<OfflineSubmissionsScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: CircularProgressIndicator(color: AppTheme.primaryGreen),
+      );
     }
 
     if (_error != null) {
@@ -123,17 +120,32 @@ class _OfflineSubmissionsScreenState extends State<OfflineSubmissionsScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, size: 56, color: Colors.red),
-              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  color: AppTheme.dangerBg,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.error_outline,
+                  size: 44,
+                  color: AppTheme.danger,
+                ),
+              ),
+              const SizedBox(height: 18),
               const Text(
                 'Could not load offline field data',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 _error!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFF757575)),
+                style: const TextStyle(color: AppTheme.textSecondary),
               ),
               const SizedBox(height: 20),
               ElevatedButton.icon(
@@ -160,17 +172,25 @@ class _OfflineSubmissionsScreenState extends State<OfflineSubmissionsScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.cloud_done,
-                        size: 72,
-                        color: Colors.green.shade300,
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: const BoxDecoration(
+                          color: AppTheme.successBg,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.cloud_done,
+                          size: 44,
+                          color: AppTheme.success,
+                        ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 18),
                       const Text(
                         'All field data is in sync',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -178,7 +198,7 @@ class _OfflineSubmissionsScreenState extends State<OfflineSubmissionsScreen> {
                         'No inspector currently has unsynced farmer '
                         'registrations sitting on their device.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Color(0xFF757575)),
+                        style: TextStyle(color: AppTheme.textSecondary),
                       ),
                     ],
                   ),
@@ -194,109 +214,142 @@ class _OfflineSubmissionsScreenState extends State<OfflineSubmissionsScreen> {
       children: [
         Container(
           width: double.infinity,
-          color: const Color(0xFFFFF3E0),
+          color: AppTheme.warningBg,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Text(
-            '${_records.length} registration(s) captured in the field '
-            'have not yet reached the server.',
-            style: const TextStyle(fontSize: 13, color: Color(0xFF795548)),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.info_outline,
+                size: 16,
+                color: AppTheme.warning,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${_records.length} registration(s) captured in the field '
+                  'have not yet reached the server.',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         Expanded(
           child: SnappingListView<OfflineSubmissionRecord>(
             items: _records,
             itemExtent: _kOfflineSubmissionCardExtent,
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(16),
             onRefresh: _load,
             keyOf: (r) => r.id,
             itemBuilder: (context, record, index) {
               return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Card(
-                  margin: EdgeInsets.zero,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                record.resolvedDisplayName,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                    border: Border.all(color: AppTheme.border),
+                    boxShadow: AppTheme.softShadow,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              record.resolvedDisplayName,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                                color: AppTheme.textPrimary,
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: _statusColor(
-                                  record.status,
-                                ).withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
+                          ),
+                          const SizedBox(width: 8),
+                          StatusBadge(label: record.status),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      if (record.locationSummary.isNotEmpty)
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.location_on_outlined,
+                              size: 13,
+                              color: AppTheme.textMuted,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
                               child: Text(
-                                record.status,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: _statusColor(record.status),
+                                record.locationSummary,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  color: AppTheme.textSecondary,
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
-                        if (record.locationSummary.isNotEmpty)
-                          Text(
-                            record.locationSummary,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 13),
+                      if (record.farmName != null &&
+                          record.farmName!.trim().isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 3),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.grass_outlined,
+                                size: 13,
+                                color: AppTheme.textMuted,
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  'Farm: ${record.farmName} · '
+                                  '${record.cropType ?? '-'}',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppTheme.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        if (record.farmName != null &&
-                            record.farmName!.trim().isNotEmpty)
-                          Text(
-                            'Farm: ${record.farmName} · '
-                            '${record.cropType ?? '-'}',
+                        ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Inspector: ${record.inspectorName ?? 'Unknown'} · '
+                        '${_formatTime(record.reportedAt)}',
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: AppTheme.textMuted,
+                        ),
+                      ),
+                      if (record.retryCount > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            'Retry attempts: ${record.retryCount}'
+                            '${record.lastError != null ? ' · ${record.lastError}' : ''}',
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 12,
-                              color: Color(0xFF757575),
+                              color: AppTheme.danger,
+                              fontWeight: FontWeight.w500,
                             ),
-                          ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Inspector: ${record.inspectorName ?? 'Unknown'} · '
-                          '${_formatTime(record.reportedAt)}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF757575),
                           ),
                         ),
-                        if (record.retryCount > 0)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text(
-                              'Retry attempts: ${record.retryCount}'
-                              '${record.lastError != null ? ' · ${record.lastError}' : ''}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.red,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
+                    ],
                   ),
                 ),
               );
