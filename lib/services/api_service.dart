@@ -16,7 +16,14 @@ class ApiService {
   // button in the field. These explicit, shorter timeouts fail fast with
   // a clear, actionable message instead.
   static const Duration _requestTimeout = Duration(seconds: 20);
-  static const Duration _uploadTimeout = Duration(seconds: 60);
+  // Farmer registrations can include several photos plus compliance
+  // document scans (PDFs), sometimes uploaded over weak field connections.
+  // 60s was too aggressive - it was cutting off uploads that were still
+  // actively transferring (confirmed in production: the farmer record was
+  // created successfully server-side seconds after the client had already
+  // given up and marked the item FAILED). 180s gives slow/rural connections
+  // a realistic chance to finish before we time out.
+  static const Duration _uploadTimeout = Duration(seconds: 180);
 
   static const String _networkUnreachableMessage =
       'Can\'t reach the server. This can happen on some mobile networks or '

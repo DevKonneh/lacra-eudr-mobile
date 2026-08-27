@@ -31,6 +31,15 @@ const List<String> kComplianceDocumentTypes = [
   'Cooperative/Association Membership Document',
 ];
 
+// Compliance documents (PDFs/scans) and the National ID file are NOT
+// compressed like camera photos are (see imageQuality: 85 below) - a
+// multi-page scanned PDF can easily be 10-50MB. Uploading that over a weak
+// field connection reliably times out even with a generous upload window,
+// and the inspector has no way to tell why "Sync Now" keeps failing. Cap
+// picked files here so the problem is caught immediately, with a clear
+// message, instead of silently poisoning the offline sync queue.
+const int _kMaxAttachmentBytes = 8 * 1024 * 1024; // 8MB
+
 class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
   final ImagePicker _picker = ImagePicker();
   String? _nationalIdPath;
@@ -87,8 +96,25 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
         allowMultiple: false,
       );
       if (result != null && result.files.single.path != null) {
+        final file = result.files.single;
+        if (file.size > _kMaxAttachmentBytes) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '"${file.name}" is ${(file.size / (1024 * 1024)).toStringAsFixed(1)}MB - '
+                'too large to upload reliably in the field (max 8MB). '
+                'Please re-scan at a lower resolution/quality, or take a '
+                'photo of the document instead of a PDF scan.',
+              ),
+              backgroundColor: AppTheme.danger,
+              duration: const Duration(seconds: 6),
+            ),
+          );
+          return;
+        }
         setState(() {
-          _complianceDocs[type] = result.files.single.path!;
+          _complianceDocs[type] = file.path!;
           _updateData();
         });
       }
