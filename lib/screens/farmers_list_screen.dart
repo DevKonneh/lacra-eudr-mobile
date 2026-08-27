@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import '../models/farmer_record_model.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../theme/app_theme.dart';
 import '../widgets/snapping_list_view.dart';
+import '../widgets/status_badge.dart';
 import 'farmer_detail_screen.dart';
 
 /// Fixed row height used for the snap-to-item list below. Every farmer
 /// card must fit within this height for the snapping math to line up.
-const double _kFarmerCardExtent = 118;
+const double _kFarmerCardExtent = 126;
 
 /// Shows every farmer that has actually been submitted to the server so
 /// far (via GET /api/farmers). This is the missing "where do I see the
@@ -94,43 +96,66 @@ class _FarmersListScreenState extends State<FarmersListScreen> {
     });
   }
 
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'Verified':
-        return Colors.green;
-      case 'Conflict':
-        return Colors.red;
-      default:
-        return Colors.orange;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Column(
+    return Container(
+      color: AppTheme.background,
+      child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Search by name, community, phone...',
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
-                fillColor: const Color(0xFFF5F5F5),
+                fillColor: AppTheme.surface,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  borderSide: BorderSide(color: AppTheme.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  borderSide: BorderSide(color: AppTheme.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  borderSide: const BorderSide(
+                    color: AppTheme.primaryGreen,
+                    width: 1.8,
+                  ),
                 ),
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
-                  vertical: 12,
+                  vertical: 14,
                 ),
               ),
             ),
           ),
+          if (!_isLoading && _error == null && _farmers.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.people_alt_outlined,
+                    size: 14,
+                    color: AppTheme.textSecondary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${_filtered.length} of ${_farmers.length} farmer(s)',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Expanded(child: _buildBody()),
         ],
       ),
@@ -139,7 +164,9 @@ class _FarmersListScreenState extends State<FarmersListScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: CircularProgressIndicator(color: AppTheme.primaryGreen),
+      );
     }
 
     if (_error != null) {
@@ -149,17 +176,32 @@ class _FarmersListScreenState extends State<FarmersListScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, size: 56, color: Colors.red),
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: AppTheme.dangerBg,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.error_outline,
+                  size: 40,
+                  color: AppTheme.danger,
+                ),
+              ),
               const SizedBox(height: 16),
               const Text(
                 'Could not load farmers',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textPrimary,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 _error!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFF757575)),
+                style: const TextStyle(color: AppTheme.textSecondary),
               ),
               const SizedBox(height: 20),
               ElevatedButton.icon(
@@ -175,6 +217,7 @@ class _FarmersListScreenState extends State<FarmersListScreen> {
 
     if (_filtered.isEmpty) {
       return RefreshIndicator(
+        color: AppTheme.primaryGreen,
         onRefresh: _loadFarmers,
         child: ListView(
           children: [
@@ -184,12 +227,19 @@ class _FarmersListScreenState extends State<FarmersListScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      _farmers.isEmpty
-                          ? Icons.people_outline
-                          : Icons.search_off,
-                      size: 64,
-                      color: Colors.grey.shade400,
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: const BoxDecoration(
+                        color: AppTheme.paleGreen,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        _farmers.isEmpty
+                            ? Icons.people_outline
+                            : Icons.search_off,
+                        size: 44,
+                        color: AppTheme.primaryGreen,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -199,12 +249,13 @@ class _FarmersListScreenState extends State<FarmersListScreen> {
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 4),
                     const Text(
                       'Pull down to refresh',
-                      style: TextStyle(color: Color(0xFF757575)),
+                      style: TextStyle(color: AppTheme.textSecondary),
                     ),
                   ],
                 ),
@@ -218,76 +269,17 @@ class _FarmersListScreenState extends State<FarmersListScreen> {
     return SnappingListView<FarmerRecord>(
       items: _filtered,
       itemExtent: _kFarmerCardExtent,
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
       onRefresh: _loadFarmers,
       keyOf: (farmer) => farmer.id,
       itemBuilder: (context, farmer, index) {
         return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: Card(
-            margin: EdgeInsets.zero,
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
-              ),
-              leading: CircleAvatar(
-                backgroundColor: const Color(
-                  0xFF4CAF50,
-                ).withValues(alpha: 0.15),
-                child: Text(
-                  farmer.fullName.isNotEmpty
-                      ? farmer.fullName[0].toUpperCase()
-                      : '?',
-                  style: const TextStyle(
-                    color: Color(0xFF388E3C),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              title: Text(
-                farmer.fullName,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 2),
-                  Text(
-                    [
-                      farmer.community,
-                      farmer.district,
-                    ].where((s) => (s ?? '').isNotEmpty).join(', '),
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                  if (farmer.farms.isNotEmpty)
-                    Text(
-                      '${farmer.farms.length} farm(s) · '
-                      '${farmer.farms.first.cropType ?? '-'}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF757575),
-                      ),
-                    ),
-                ],
-              ),
-              trailing: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _statusColor(
-                    farmer.identityStatus,
-                  ).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  farmer.identityStatus,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: _statusColor(farmer.identityStatus),
-                  ),
-                ),
-              ),
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Material(
+            color: AppTheme.surface,
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
@@ -295,6 +287,113 @@ class _FarmersListScreenState extends State<FarmersListScreen> {
                   ),
                 );
               },
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  border: Border.all(color: AppTheme.border),
+                  boxShadow: AppTheme.softShadow,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: AppTheme.paleGreen,
+                      child: Text(
+                        farmer.fullName.isNotEmpty
+                            ? farmer.fullName[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                          color: AppTheme.darkGreen,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  farmer.fullName,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
+                                    color: AppTheme.textPrimary,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              StatusBadge(label: farmer.identityStatus),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          if ([
+                            farmer.community,
+                            farmer.district,
+                          ].any((s) => (s ?? '').isNotEmpty))
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.location_on_outlined,
+                                  size: 13,
+                                  color: AppTheme.textMuted,
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    [
+                                      farmer.community,
+                                      farmer.district,
+                                    ].where((s) => (s ?? '').isNotEmpty).join(
+                                      ', ',
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 12.5,
+                                      color: AppTheme.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          if (farmer.farms.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.grass_outlined,
+                                  size: 13,
+                                  color: AppTheme.textMuted,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${farmer.farms.length} farm(s) · '
+                                  '${farmer.farms.first.cropType ?? '-'}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppTheme.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const Icon(
+                      Icons.chevron_right,
+                      color: AppTheme.textMuted,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         );

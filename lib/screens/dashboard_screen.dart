@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../routes/app_routes.dart';
+import '../theme/app_theme.dart';
 import 'farmer_registry_screen.dart';
 import 'farmers_list_screen.dart';
 import 'create_inspector_screen.dart';
@@ -90,69 +91,132 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
-  Widget _buildScannerTab() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.qr_code_scanner,
-              size: 80,
-              color: Color(0xFF4CAF50),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'QR Scanner',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Scan QR codes to view farmer or batch details',
-              style: TextStyle(fontSize: 16, color: Color(0xFF757575)),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
-            Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              alignment: WrapAlignment.center,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.of(
-                      context,
-                    ).pushNamed(AppRoutes.qrScanner, arguments: 'farmer');
-                  },
-                  icon: const Icon(Icons.people_outline),
-                  label: const Text('Scan Farmer QR'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 16,
+  Widget _scannerActionCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color accent,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: AppTheme.surface,
+      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+            border: Border.all(color: AppTheme.border),
+            boxShadow: AppTheme.softShadow,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                ),
+                child: Icon(icon, color: accent, size: 26),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textPrimary,
+                      ),
                     ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right,
+                color: AppTheme.textMuted,
+                size: 22,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScannerTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+            decoration: BoxDecoration(
+              gradient: AppTheme.primaryGradient,
+              borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+              boxShadow: AppTheme.elevatedShadow,
+            ),
+            child: const Column(
+              children: [
+                Icon(Icons.qr_code_scanner, size: 64, color: Colors.white),
+                SizedBox(height: 16),
+                Text(
+                  'QR Scanner',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.of(
-                      context,
-                    ).pushNamed(AppRoutes.qrScanner, arguments: 'batch');
-                  },
-                  icon: const Icon(Icons.inventory_2_outlined),
-                  label: const Text('Scan Batch QR'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 16,
-                    ),
-                  ),
+                SizedBox(height: 6),
+                Text(
+                  'Scan QR codes to view farmer or batch details',
+                  style: TextStyle(fontSize: 13, color: Colors.white70),
+                  textAlign: TextAlign.center,
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 24),
+          _scannerActionCard(
+            icon: Icons.people_outline,
+            title: 'Scan Farmer QR',
+            subtitle: 'View a farmer\'s registered profile and farms',
+            accent: AppTheme.primaryGreen,
+            onTap: () {
+              Navigator.of(
+                context,
+              ).pushNamed(AppRoutes.qrScanner, arguments: 'farmer');
+            },
+          ),
+          const SizedBox(height: 14),
+          _scannerActionCard(
+            icon: Icons.inventory_2_outlined,
+            title: 'Scan Batch QR',
+            subtitle: 'View traceability details for a commodity batch',
+            accent: AppTheme.info,
+            onTap: () {
+              Navigator.of(
+                context,
+              ).pushNamed(AppRoutes.qrScanner, arguments: 'batch');
+            },
+          ),
+        ],
       ),
     );
   }
@@ -161,23 +225,35 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('LACRA Dashboard'),
-        leading: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: GestureDetector(
-            onTap: _openProfile,
-            child: CircleAvatar(
-              backgroundColor: Colors.white,
-              child: Text(
-                _userInitial(),
-                style: const TextStyle(
-                  color: Color(0xFF4CAF50),
-                  fontWeight: FontWeight.bold,
+        automaticallyImplyLeading: false,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: AppTheme.primaryGradient),
+        ),
+        title: Row(
+          children: [
+            GestureDetector(
+              onTap: _openProfile,
+              child: CircleAvatar(
+                backgroundColor: Colors.white,
+                child: Text(
+                  _userInitial(),
+                  style: const TextStyle(
+                    color: AppTheme.primaryGreen,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
-          ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'LACRA Dashboard',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
+        centerTitle: false,
         actions: [
           // Admin-only: create new Inspector accounts from the field, since
           // multiple people use this app and admins need a quick way to
@@ -227,9 +303,6 @@ class _DashboardScreenState extends State<DashboardScreen>
         ],
         bottom: TabBar(
           controller: _tabController,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
           tabs: const [
             Tab(icon: Icon(Icons.qr_code_scanner), text: 'Scanner'),
             Tab(icon: Icon(Icons.person_add), text: 'Register'),

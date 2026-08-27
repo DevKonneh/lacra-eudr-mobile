@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../models/farmer_record_model.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../theme/app_theme.dart';
+import '../widgets/status_badge.dart';
 
 /// Full detail view for a single farmer + their farm(s), fetched fresh
 /// from GET /api/farmers/:id. Reached by tapping a row in FarmersListScreen.
@@ -53,70 +55,106 @@ class _FarmerDetailScreenState extends State<FarmerDetailScreen> {
     }
   }
 
-  Widget _infoRow(String label, String? value) {
+  Widget _infoRow(String label, String? value, {IconData? icon}) {
     if (value == null || value.trim().isEmpty) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 130,
+            width: 128,
+            child: Row(
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 14, color: AppTheme.textMuted),
+                  const SizedBox(width: 6),
+                ],
+                Expanded(
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: AppTheme.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
             child: Text(
-              label,
+              value,
               style: const TextStyle(
-                fontSize: 13,
-                color: Color(0xFF757575),
+                fontSize: 14,
+                color: AppTheme.textPrimary,
                 fontWeight: FontWeight.w500,
               ),
             ),
           ),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
         ],
       ),
     );
   }
 
-  Widget _sectionCard({required String title, required List<Widget> children}) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF388E3C),
+  Widget _sectionCard({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        border: Border.all(color: AppTheme.border),
+        boxShadow: AppTheme.softShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppTheme.paleGreen,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, size: 16, color: AppTheme.primaryGreen),
               ),
-            ),
-            const Divider(height: 16),
-            ...children,
-          ],
-        ),
+              const SizedBox(width: 10),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Divider(height: 1),
+          ),
+          ...children,
+        ],
       ),
     );
-  }
-
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'Verified':
-        return Colors.green;
-      case 'Conflict':
-        return Colors.red;
-      default:
-        return Colors.orange;
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: Text(_farmer?.fullName ?? 'Farmer Details'),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: AppTheme.primaryGradient),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -131,7 +169,9 @@ class _FarmerDetailScreenState extends State<FarmerDetailScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: CircularProgressIndicator(color: AppTheme.primaryGreen),
+      );
     }
 
     if (_error != null) {
@@ -141,12 +181,23 @@ class _FarmerDetailScreenState extends State<FarmerDetailScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, size: 56, color: Colors.red),
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: const BoxDecoration(
+                  color: AppTheme.dangerBg,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.error_outline,
+                  size: 40,
+                  color: AppTheme.danger,
+                ),
+              ),
               const SizedBox(height: 16),
               Text(
                 _error!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFF757575)),
+                style: const TextStyle(color: AppTheme.textSecondary),
               ),
               const SizedBox(height: 20),
               ElevatedButton.icon(
@@ -167,22 +218,27 @@ class _FarmerDetailScreenState extends State<FarmerDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+            decoration: BoxDecoration(
+              gradient: AppTheme.primaryGradient,
+              borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+              boxShadow: AppTheme.elevatedShadow,
+            ),
             child: Column(
               children: [
                 CircleAvatar(
-                  radius: 40,
-                  backgroundColor: const Color(
-                    0xFF4CAF50,
-                  ).withValues(alpha: 0.15),
+                  radius: 38,
+                  backgroundColor: Colors.white,
                   child: Text(
                     farmer.fullName.isNotEmpty
                         ? farmer.fullName[0].toUpperCase()
                         : '?',
                     style: const TextStyle(
-                      fontSize: 32,
+                      fontSize: 30,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF388E3C),
+                      color: AppTheme.primaryGreen,
                     ),
                   ),
                 ),
@@ -190,51 +246,63 @@ class _FarmerDetailScreenState extends State<FarmerDetailScreen> {
                 Text(
                   farmer.fullName,
                   style: const TextStyle(
-                    fontSize: 20,
+                    fontSize: 19,
                     fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _statusColor(
-                      farmer.identityStatus,
-                    ).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    farmer.identityStatus,
+                if (farmer.farmerId != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    farmer.farmerId!,
                     style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: _statusColor(farmer.identityStatus),
+                      fontSize: 12,
+                      color: Colors.white.withValues(alpha: 0.8),
                     ),
                   ),
-                ),
+                ],
+                const SizedBox(height: 10),
+                StatusBadge(label: farmer.identityStatus),
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
           _sectionCard(
             title: 'Personal Information',
+            icon: Icons.badge_outlined,
             children: [
-              _infoRow('Farmer ID', farmer.farmerId),
-              _infoRow('Phone', farmer.phoneNumber),
-              _infoRow('Email', farmer.email),
-              _infoRow('Gender', farmer.gender),
-              _infoRow('Nationality', farmer.nationality),
-              _infoRow('Enumerator', farmer.enumeratorName),
+              _infoRow(
+                'Farmer ID',
+                farmer.farmerId,
+                icon: Icons.tag_outlined,
+              ),
+              _infoRow(
+                'Phone',
+                farmer.phoneNumber,
+                icon: Icons.phone_outlined,
+              ),
+              _infoRow('Email', farmer.email, icon: Icons.email_outlined),
+              _infoRow('Gender', farmer.gender, icon: Icons.wc_outlined),
+              _infoRow(
+                'Nationality',
+                farmer.nationality,
+                icon: Icons.flag_outlined,
+              ),
+              _infoRow(
+                'Enumerator',
+                farmer.enumeratorName,
+                icon: Icons.person_pin_outlined,
+              ),
               _infoRow(
                 'Registered',
                 farmer.createdAt?.toLocal().toString().split('.').first,
+                icon: Icons.event_outlined,
               ),
             ],
           ),
           _sectionCard(
             title: 'Location',
+            icon: Icons.location_on_outlined,
             children: [
               _infoRow('Community', farmer.community),
               _infoRow('District', farmer.district),
@@ -243,17 +311,34 @@ class _FarmerDetailScreenState extends State<FarmerDetailScreen> {
             ],
           ),
           if (farmer.farms.isEmpty)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Center(
-                  child: Column(
-                    children: [
-                      Icon(Icons.grass, size: 40, color: Colors.grey.shade400),
-                      const SizedBox(height: 8),
-                      const Text('No farm details recorded'),
-                    ],
-                  ),
+            Container(
+              padding: const EdgeInsets.all(28),
+              decoration: BoxDecoration(
+                color: AppTheme.surface,
+                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                border: Border.all(color: AppTheme.border),
+              ),
+              child: Center(
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: const BoxDecoration(
+                        color: AppTheme.paleGreen,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.grass,
+                        size: 36,
+                        color: AppTheme.primaryGreen,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'No farm details recorded',
+                      style: TextStyle(color: AppTheme.textSecondary),
+                    ),
+                  ],
                 ),
               ),
             )
@@ -263,6 +348,7 @@ class _FarmerDetailScreenState extends State<FarmerDetailScreen> {
               final farm = entry.value;
               return _sectionCard(
                 title: 'Farm ${i + 1}: ${farm.name}',
+                icon: Icons.grass_outlined,
                 children: [
                   _infoRow('Crop Type', farm.cropType),
                   _infoRow('Risk Level', farm.riskLevel),

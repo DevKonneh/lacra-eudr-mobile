@@ -97,9 +97,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My Profile')),
+      backgroundColor: AppTheme.background,
+      appBar: AppBar(
+        title: const Text('My Profile'),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: AppTheme.primaryGradient),
+        ),
+      ),
       body: _isLoadingUser
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(color: AppTheme.primaryGreen),
+            )
           : _user == null
               ? Center(
                   child: Padding(
@@ -107,17 +115,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.error_outline, size: 56, color: Colors.red),
+                        Container(
+                          padding: const EdgeInsets.all(18),
+                          decoration: const BoxDecoration(
+                            color: AppTheme.dangerBg,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.error_outline,
+                            size: 40,
+                            color: AppTheme.danger,
+                          ),
+                        ),
                         const SizedBox(height: 16),
                         const Text(
                           'Could not load your profile',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         const Text(
                           'Your session may have expired. Please log in again.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Color(0xFF757575)),
+                          style: TextStyle(color: AppTheme.textSecondary),
                         ),
                         const SizedBox(height: 20),
                         ElevatedButton(
@@ -136,22 +159,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       // Identity header - the whole point of this screen: make
                       // it unmistakable WHO is currently logged in.
                       Container(
-                        padding: const EdgeInsets.all(24),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 30,
+                          horizontal: 24,
+                        ),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryGreen.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(16),
+                          gradient: AppTheme.primaryGradient,
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusXl,
+                          ),
+                          boxShadow: AppTheme.elevatedShadow,
                         ),
                         child: Column(
                           children: [
                             CircleAvatar(
                               radius: 40,
-                              backgroundColor: AppTheme.primaryGreen,
+                              backgroundColor: Colors.white,
                               child: Text(
                                 _initialOf(_user!.name),
                                 style: const TextStyle(
                                   fontSize: 32,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                  color: AppTheme.primaryGreen,
                                 ),
                               ),
                             ),
@@ -161,34 +190,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
+                                color: Colors.white,
                               ),
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 4),
                             Text(
                               _user!.email,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 14,
-                                color: Color(0xFF757575),
+                                color: Colors.white.withValues(alpha: 0.85),
                               ),
                               textAlign: TextAlign.center,
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 12),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 4,
+                                horizontal: 14,
+                                vertical: 5,
                               ),
                               decoration: BoxDecoration(
-                                color: AppTheme.primaryGreen,
-                                borderRadius: BorderRadius.circular(20),
+                                color: Colors.white.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusPill,
+                                ),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.4),
+                                ),
                               ),
                               child: Text(
                                 _roleLabel(_user!.role),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 12,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.3,
                                 ),
                               ),
                             ),
@@ -198,31 +234,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 24),
 
                       // Account details card
-                      Card(
-                        margin: EdgeInsets.zero,
-                        child: Padding(
-                          padding: const EdgeInsets.all(4),
-                          child: Column(
-                            children: [
-                              _ProfileInfoTile(
-                                icon: Icons.badge_outlined,
-                                label: 'Full Name',
-                                value: _user!.name,
-                              ),
-                              const Divider(height: 1),
-                              _ProfileInfoTile(
-                                icon: Icons.email_outlined,
-                                label: 'Email Address',
-                                value: _user!.email,
-                              ),
-                              const Divider(height: 1),
-                              _ProfileInfoTile(
-                                icon: Icons.verified_user_outlined,
-                                label: 'Role',
-                                value: _roleLabel(_user!.role),
-                              ),
-                            ],
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppTheme.surface,
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusLg,
                           ),
+                          border: Border.all(color: AppTheme.border),
+                          boxShadow: AppTheme.softShadow,
+                        ),
+                        child: Column(
+                          children: [
+                            _ProfileInfoTile(
+                              icon: Icons.badge_outlined,
+                              label: 'Full Name',
+                              value: _user!.name,
+                            ),
+                            const Divider(height: 1),
+                            _ProfileInfoTile(
+                              icon: Icons.email_outlined,
+                              label: 'Email Address',
+                              value: _user!.email,
+                            ),
+                            const Divider(height: 1),
+                            _ProfileInfoTile(
+                              icon: Icons.verified_user_outlined,
+                              label: 'Role',
+                              value: _roleLabel(_user!.role),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -232,21 +272,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         onPressed: _openChangePasswordSheet,
                         icon: const Icon(Icons.lock_reset_outlined),
                         label: const Text('Change Password'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
                       ),
                       const SizedBox(height: 12),
                       OutlinedButton.icon(
                         onPressed: _handleLogout,
-                        icon: const Icon(Icons.logout, color: Colors.red),
+                        icon: const Icon(
+                          Icons.logout,
+                          color: AppTheme.danger,
+                        ),
                         label: const Text(
                           'Logout',
-                          style: TextStyle(color: Colors.red),
+                          style: TextStyle(color: AppTheme.danger),
                         ),
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          side: const BorderSide(color: Colors.red),
+                          side: const BorderSide(color: AppTheme.danger),
                         ),
                       ),
                     ],
@@ -270,14 +309,25 @@ class _ProfileInfoTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icon, color: AppTheme.primaryGreen),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: AppTheme.paleGreen,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: AppTheme.primaryGreen, size: 20),
+      ),
       title: Text(
         label,
-        style: const TextStyle(fontSize: 12, color: Color(0xFF757575)),
+        style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
       ),
       subtitle: Text(
         value,
-        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+        style: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          color: AppTheme.textPrimary,
+        ),
       ),
     );
   }
@@ -486,18 +536,23 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.red.shade200),
+                      color: AppTheme.dangerBg,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      border: Border.all(
+                        color: AppTheme.danger.withValues(alpha: 0.3),
+                      ),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.error_outline, color: Colors.red.shade700),
+                        const Icon(
+                          Icons.error_outline,
+                          color: AppTheme.danger,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             _errorMessage!,
-                            style: TextStyle(color: Colors.red.shade700),
+                            style: const TextStyle(color: AppTheme.danger),
                           ),
                         ),
                       ],
