@@ -14,6 +14,7 @@ import '../widgets/farmer_attachments_step.dart';
 import '../widgets/farmer_review_step.dart';
 import '../services/offline_sync_service.dart';
 import '../services/draft_service.dart';
+import '../theme/app_theme.dart';
 
 void _log(String message) {
   if (kDebugMode) {
@@ -522,20 +523,24 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF4CAF50).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
+            color: AppTheme.paleGreen,
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
                 'Farm Boundary Mapping',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                ),
               ),
               const SizedBox(height: 8),
               const Text(
                 'Tap the button below to open the map in full screen. Search for a location, then start drawing the farm boundary by tapping points on the map.',
-                style: TextStyle(fontSize: 13),
+                style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
               ),
               const SizedBox(height: 16),
               ElevatedButton.icon(
@@ -585,6 +590,7 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
                 icon: const Icon(Icons.map),
                 label: const Text('Open Map'),
                 style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryGreen,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 24,
                     vertical: 14,
@@ -599,13 +605,13 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.green.shade200),
+              color: AppTheme.successBg,
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              border: Border.all(color: AppTheme.success.withValues(alpha: 0.3)),
             ),
             child: Row(
               children: [
-                const Icon(Icons.check_circle, color: Colors.green),
+                const Icon(Icons.check_circle, color: AppTheme.success),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Column(
@@ -615,7 +621,7 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
                         'Boundary Captured',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: Colors.green,
+                          color: AppTheme.success,
                         ),
                       ),
                       if (_formData['areaHa'] != null)
@@ -644,17 +650,18 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(8),
+              color: AppTheme.background,
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              border: Border.all(color: AppTheme.border),
             ),
             child: const Row(
               children: [
-                Icon(Icons.info_outline, color: Colors.grey),
+                Icon(Icons.info_outline, color: AppTheme.textMuted),
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'No boundary captured yet. Tap "Open Map" to start mapping.',
-                    style: TextStyle(fontSize: 12),
+                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
                   ),
                 ),
               ],
@@ -701,8 +708,8 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+          color: AppTheme.surface,
+          border: const Border(bottom: BorderSide(color: AppTheme.border)),
         ),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -720,11 +727,9 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: isActive
-                        ? const Color(0xFF4CAF50)
-                        : (isDone
-                              ? Colors.green.shade100
-                              : Colors.grey.shade200),
-                    borderRadius: BorderRadius.circular(20),
+                        ? AppTheme.primaryGreen
+                        : (isDone ? AppTheme.paleGreen : AppTheme.divider),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusPill),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -735,7 +740,7 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
                         decoration: BoxDecoration(
                           color: isActive || isDone
                               ? Colors.white
-                              : Colors.grey.shade400,
+                              : AppTheme.textMuted,
                           shape: BoxShape.circle,
                         ),
                         child: Center(
@@ -745,7 +750,7 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
                               fontWeight: FontWeight.w900,
                               fontSize: 11,
                               color: isActive || isDone
-                                  ? const Color(0xFF4CAF50)
+                                  ? AppTheme.primaryGreen
                                   : Colors.white,
                             ),
                           ),
@@ -758,7 +763,9 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 12,
-                            color: isActive ? Colors.white : Colors.black87,
+                            color: isActive
+                                ? Colors.white
+                                : AppTheme.textPrimary,
                           ),
                         ),
                     ],
@@ -773,16 +780,16 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
       // Desktop: Vertical sidebar
       return Container(
         width: 280,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(right: BorderSide(color: Colors.grey.shade300)),
+        decoration: const BoxDecoration(
+          color: AppTheme.surface,
+          border: Border(right: BorderSide(color: AppTheme.border)),
         ),
         child: Column(
           children: [
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: AppTheme.border)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -793,10 +800,10 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF4CAF50).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
+                      color: AppTheme.paleGreen,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusPill),
                       border: Border.all(
-                        color: const Color(0xFF4CAF50).withOpacity(0.3),
+                        color: AppTheme.primaryGreen.withValues(alpha: 0.3),
                       ),
                     ),
                     child: const Text(
@@ -804,14 +811,14 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF4CAF50),
+                        color: AppTheme.darkGreen,
                       ),
                     ),
                   ),
                   const SizedBox(height: 10),
                   const Text(
                     'Complete each section and click Next. Sections marked done are ready.',
-                    style: TextStyle(fontSize: 11, color: Color(0xFF757575)),
+                    style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                   ),
                 ],
               ),
@@ -825,19 +832,18 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
                   final isDone = _stepCompleted[index];
                   return InkWell(
                     onTap: () => _goToStep(index),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: isActive
-                            ? const Color(0xFF4CAF50).withOpacity(0.1)
-                            : Colors.transparent,
+                        color: isActive ? AppTheme.paleGreen : Colors.transparent,
                         border: Border.all(
                           color: isActive
-                              ? const Color(0xFF4CAF50).withOpacity(0.5)
-                              : Colors.grey.shade300,
+                              ? AppTheme.primaryGreen.withValues(alpha: 0.5)
+                              : AppTheme.border,
                         ),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                       ),
                       child: Row(
                         children: [
@@ -846,13 +852,13 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
                             height: 26,
                             decoration: BoxDecoration(
                               color: isDone
-                                  ? const Color(0xFF4CAF50).withOpacity(0.2)
-                                  : const Color(0xFF4CAF50).withOpacity(0.1),
+                                  ? AppTheme.primaryGreen.withValues(alpha: 0.2)
+                                  : AppTheme.paleGreen,
                               shape: BoxShape.circle,
                               border: Border.all(
                                 color: isDone
-                                    ? const Color(0xFF4CAF50)
-                                    : Colors.grey.shade400,
+                                    ? AppTheme.primaryGreen
+                                    : AppTheme.textMuted,
                               ),
                             ),
                             child: Center(
@@ -862,8 +868,8 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
                                   fontWeight: FontWeight.w900,
                                   fontSize: 12,
                                   color: isDone
-                                      ? const Color(0xFF4CAF50)
-                                      : Colors.grey.shade700,
+                                      ? AppTheme.primaryGreen
+                                      : AppTheme.textSecondary,
                                 ),
                               ),
                             ),
@@ -879,15 +885,15 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
                                     fontWeight: FontWeight.w800,
                                     fontSize: 12,
                                     color: isActive
-                                        ? const Color(0xFF4CAF50)
-                                        : Colors.black87,
+                                        ? AppTheme.darkGreen
+                                        : AppTheme.textPrimary,
                                   ),
                                 ),
                                 Text(
                                   _steps[index]['hint']!,
                                   style: const TextStyle(
                                     fontSize: 11,
-                                    color: Color(0xFF757575),
+                                    color: AppTheme.textSecondary,
                                   ),
                                 ),
                               ],
@@ -915,19 +921,14 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
       //   title: const Text('Farmer Registry'),
       // ),
       body: isMobile ? _buildMobileLayout() : _buildDesktopLayout(),
+      backgroundColor: AppTheme.background,
       bottomNavigationBar: isMobile
           ? Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border(top: BorderSide(color: Colors.grey.shade300)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, -2),
-                  ),
-                ],
+                color: AppTheme.surface,
+                border: const Border(top: BorderSide(color: AppTheme.border)),
+                boxShadow: AppTheme.softShadow,
               ),
               child: SafeArea(
                 child: Column(
@@ -946,18 +947,16 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
                         _isSavingDraft ? 'Saving...' : 'Save as Draft',
                       ),
                       style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFF4CAF50),
+                        foregroundColor: AppTheme.primaryGreen,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
                         Expanded(
-                          child: ElevatedButton(
+                          child: OutlinedButton(
                             onPressed: _currentStep > 0 ? _previousStep : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.grey.shade200,
-                              foregroundColor: Colors.black87,
+                            style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               textStyle: const TextStyle(fontSize: 14),
                             ),
@@ -1033,7 +1032,7 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  border: Border(top: BorderSide(color: Colors.grey.shade300)),
+                  border: Border(top: BorderSide(color: AppTheme.border)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
@@ -1051,15 +1050,13 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
                         _isSavingDraft ? 'Saving...' : 'Save as Draft',
                       ),
                       style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFF4CAF50),
+                        foregroundColor: AppTheme.primaryGreen,
                       ),
                     ),
                     const Spacer(),
-                    ElevatedButton(
+                    OutlinedButton(
                       onPressed: _currentStep > 0 ? _previousStep : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey.shade200,
-                        foregroundColor: Colors.black87,
+                      style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 24,
                           vertical: 12,
