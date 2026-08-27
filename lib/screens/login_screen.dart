@@ -65,7 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (mounted) {
           setState(() {
             _errorMessage =
-                'This app is for LACRA inspectors and admins only. '
+                'This app is for LACRA field mappers and admins only. '
                 'Your account role (${response.user.role}) does not have access.';
           });
         }
@@ -123,9 +123,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     const AppLogo(size: 84, padding: 12),
                     const SizedBox(height: 18),
                     const Text(
-                      'LACRA Inspector',
+                      'LACRA Farm Mapping Tools',
                       style: TextStyle(
-                        fontSize: 24,
+                        fontSize: 22,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
@@ -133,7 +133,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Farm Inspection & EUDR Compliance',
+                      'Farm Mapping & EUDR Compliance',
                       style: TextStyle(
                         fontSize: 13,
                         color: Colors.white.withValues(alpha: 0.85),

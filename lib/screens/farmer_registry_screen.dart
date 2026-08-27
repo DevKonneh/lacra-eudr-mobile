@@ -12,6 +12,7 @@ import '../widgets/farmer_farm_details_step.dart';
 import '../widgets/farm_map_widget.dart';
 import '../widgets/farmer_attachments_step.dart';
 import '../widgets/farmer_review_step.dart';
+import '../widgets/boundary_preview_map.dart';
 import '../services/offline_sync_service.dart';
 import '../services/draft_service.dart';
 import '../theme/app_theme.dart';
@@ -609,40 +610,50 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
               border: Border.all(color: AppTheme.success.withValues(alpha: 0.3)),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.check_circle, color: AppTheme.success),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Boundary Captured',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.success,
-                        ),
-                      ),
-                      if (_formData['areaHa'] != null)
-                        Text(
-                          'Area: ${_formData['areaHa']} hectares',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                      if (_boundaryEvidence != null &&
-                          _boundaryEvidence!.isNotEmpty)
-                        Text(
-                          'EUDR evidence: ${_boundaryEvidence!.length} '
-                          'geotagged photos attached',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF2E7D32),
+                Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: AppTheme.success),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Boundary Captured',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.success,
+                            ),
                           ),
-                        ),
-                    ],
-                  ),
+                          if (_formData['areaHa'] != null)
+                            Text(
+                              'Area: ${_formData['areaHa']} hectares',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          if (_boundaryEvidence != null &&
+                              _boundaryEvidence!.isNotEmpty)
+                            Text(
+                              'EUDR evidence: ${_boundaryEvidence!.length} '
+                              'geotagged photos attached',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF2E7D32),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 12),
+                // Visual confirmation of the drawn area over satellite
+                // imagery, shown right after capture - before the mapper
+                // moves on to Attachments / Review & Submit.
+                BoundaryPreviewMap(boundaryJson: _boundaryJson!),
               ],
             ),
           ),
@@ -696,7 +707,7 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
           initialData: _formData,
         );
       case 5:
-        return FarmerReviewStep(formData: _formData);
+        return FarmerReviewStep(formData: _formData, boundaryJson: _boundaryJson);
       default:
         return const SizedBox();
     }

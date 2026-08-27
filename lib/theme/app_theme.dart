@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Centralized design system for the LACRA Inspector app.
+/// Centralized design system for the LACRA Farm Mapping Tools app.
 ///
 /// Every screen should pull colors, gradients, spacing, radii and shadows
 /// from here instead of hardcoding values, so the whole app reads as one

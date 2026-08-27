@@ -66,6 +66,22 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
   static const String _googleMapsApiKey =
       'AIzaSyDjBhe0NHRAHbAF7-xK8OaCG1LgVIUoulo';
 
+  // Satellite imagery is the default base layer so the mapper can see real
+  // ground cover (trees, cleared land, roads) while capturing boundary
+  // points - hybrid overlays roads/place labels on top of the satellite
+  // photo, which also helps for orientation. A toggle lets them switch back
+  // to the plain street map if satellite tiles are hard to read in a given
+  // area.
+  MapType _mapType = MapType.hybrid;
+
+  void _toggleMapType() {
+    setState(() {
+      _mapType = _mapType == MapType.hybrid
+          ? MapType.normal
+          : MapType.hybrid;
+    });
+  }
+
   // Auto-mapping state
   bool _isAutoMapping = false;
   MappingMode _mappingMode = MappingMode.manual;
@@ -981,12 +997,56 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
               onTap: _onMapTap,
               polygons: _polygons,
               markers: _markers,
-              mapType: MapType.normal,
+              mapType: _mapType,
               myLocationEnabled: true,
               myLocationButtonEnabled: false, // We'll add custom button
               zoomControlsEnabled: true,
               compassEnabled: true,
               mapToolbarEnabled: false,
+            ),
+          ),
+
+          // Satellite/Street map type toggle - stacked above the "my
+          // location" button on the right edge so it never collides with
+          // the full-width search bar overlay at the top.
+          Positioned(
+            right: 16,
+            bottom: 260,
+            child: Material(
+              elevation: 3,
+              borderRadius: BorderRadius.circular(20),
+              color: Colors.white,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: _toggleMapType,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _mapType == MapType.hybrid
+                            ? Icons.map_outlined
+                            : Icons.satellite_alt,
+                        size: 16,
+                        color: const Color(0xFF4CAF50),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _mapType == MapType.hybrid ? 'Street' : 'Satellite',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF4CAF50),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
 

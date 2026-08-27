@@ -1,6 +1,6 @@
 {
-    "name": "LACRA -Farming Tools",
-    "short_name": "LACRA -Farming Tools",
+    "name": "LACRA Farm Mapping Tools",
+    "short_name": "LACRA FMT",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

@@ -3,11 +3,17 @@ import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'dart:io';
 import '../theme/app_theme.dart';
+import 'boundary_preview_map.dart';
 
 class FarmerReviewStep extends StatelessWidget {
   final Map<String, dynamic> formData;
+  final Map<String, dynamic>? boundaryJson;
 
-  const FarmerReviewStep({super.key, required this.formData});
+  const FarmerReviewStep({
+    super.key,
+    required this.formData,
+    this.boundaryJson,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -154,6 +160,22 @@ class FarmerReviewStep extends StatelessWidget {
                 'Boundary Mapped',
                 formData['boundaryJson'] != null,
               ),
+              if (boundaryJson != null && boundaryJson!.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                const Text(
+                  'Captured area (verify before submitting):',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                BoundaryPreviewMap(
+                  boundaryJson: boundaryJson!,
+                  height: 200,
+                ),
+              ],
             ],
           ),
 
