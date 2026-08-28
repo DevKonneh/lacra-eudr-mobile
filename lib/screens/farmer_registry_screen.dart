@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'dart:convert';
 import '../models/farmer_registration_model.dart';
 import '../models/draft_item.dart';
+import '../models/pending_sync_item.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../routes/app_routes.dart';
@@ -30,7 +31,22 @@ class FarmerRegistryScreen extends StatefulWidget {
   /// completed steps) so the inspector picks up right where they left off.
   final DraftItem? draftToResume;
 
-  const FarmerRegistryScreen({super.key, this.draftToResume});
+  /// If editing an already-queued offline registration (e.g. to remove an
+  /// oversized attachment that's been causing sync to time out - see
+  /// PendingSyncScreen's "Edit" action), pass it here. initState restores
+  /// the full registration snapshot into the wizard (all steps, since a
+  /// pending item is a *complete* registration ready to submit, unlike a
+  /// draft which may be partial) so the inspector can fix the problem field
+  /// and resubmit. On successful resubmission the OLD pending item is
+  /// removed so editing doesn't leave a stale duplicate sitting in the
+  /// queue alongside the freshly resubmitted one.
+  final PendingSyncItem? pendingItemToResume;
+
+  const FarmerRegistryScreen({
+    super.key,
+    this.draftToResume,
+    this.pendingItemToResume,
+  });
 
   @override
   State<FarmerRegistryScreen> createState() => _FarmerRegistryScreenState();
@@ -56,6 +72,11 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
   // resumed) - subsequent "Save as Draft" taps update this same record
   // instead of creating a new one each time.
   String? _draftId;
+  // Set when resuming from an already-queued PendingSyncItem (see
+  // widget.pendingItemToResume) - on successful resubmission, this old
+  // item is removed from the offline-sync queue so we don't end up with
+  // both the edited version AND the original stuck duplicate.
+  String? _editingPendingItemId;
 
   @override
   void initState() {
@@ -74,6 +95,39 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
       ) {
         _stepCompleted[i] = draft.stepCompleted[i];
       }
+    }
+
+    final pendingItem = widget.pendingItemToResume;
+    if (pendingItem != null && pendingItem.registration != null) {
+      _editingPendingItemId = pendingItem.id;
+      // registration is FarmerRegistrationModel.toFullJson() - same key
+      // shape _formData already uses throughout this screen/its step
+      // widgets, so this drops in directly.
+      _formData.addAll(pendingItem.registration!);
+      final boundaryJsonRaw = pendingItem.registration!['boundaryJson'];
+      if (boundaryJsonRaw is String && boundaryJsonRaw.isNotEmpty) {
+        try {
+          _boundaryJson = jsonDecode(boundaryJsonRaw) as Map<String, dynamic>;
+        } catch (_) {
+          _boundaryJson = null;
+        }
+      }
+      final evidenceRaw = pendingItem.registration!['boundaryEvidence'];
+      if (evidenceRaw is List) {
+        _boundaryEvidence = evidenceRaw
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+      }
+      // A pending item is always a COMPLETE registration (it only exists
+      // because a full submission attempt was already made) - mark every
+      // step done so the inspector lands straight on Review/Attachments
+      // instead of being forced back through steps that are already filled.
+      for (int i = 0; i < _stepCompleted.length; i++) {
+        _stepCompleted[i] = true;
+      }
+      // Jump straight to Attachments - this is what the inspector almost
+      // always needs to fix (remove/replace an oversized document/photo).
+      _currentStep = 4;
     }
   }
 
@@ -279,6 +333,7 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
       if (!hasConnectivity) {
         await _offlineSyncService.enqueue(farmerData);
         await _discardDraftIfAny();
+        await _removeOldPendingItemIfEditing();
         if (mounted) {
           _showQueuedForSyncMessage();
           Navigator.of(
@@ -335,6 +390,7 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
         }
 
         await _discardDraftIfAny();
+        await _removeOldPendingItemIfEditing();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -355,6 +411,7 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
         if (_isNetworkError(e)) {
           await _offlineSyncService.enqueue(farmerData);
           await _discardDraftIfAny();
+          await _removeOldPendingItemIfEditing();
           if (mounted) {
             _showQueuedForSyncMessage();
             Navigator.of(
@@ -456,6 +513,18 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
   Future<void> _discardDraftIfAny() async {
     if (_draftId != null) {
       await _draftService.deleteDraft(_draftId!);
+    }
+  }
+
+  /// If this registration was resumed from an already-queued
+  /// PendingSyncItem (see widget.pendingItemToResume), removes that OLD
+  /// item now that a fresh copy has just been submitted (either
+  /// successfully, or re-queued offline). Without this, editing a stuck
+  /// item would leave the original broken copy sitting in the queue
+  /// alongside the fixed one, showing as a confusing duplicate.
+  Future<void> _removeOldPendingItemIfEditing() async {
+    if (_editingPendingItemId != null) {
+      await _offlineSyncService.removeItem(_editingPendingItemId!);
     }
   }
 

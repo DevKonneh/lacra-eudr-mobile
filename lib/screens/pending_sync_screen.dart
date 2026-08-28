@@ -3,6 +3,7 @@ import '../models/pending_sync_item.dart';
 import '../services/offline_sync_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/snapping_list_view.dart';
+import 'farmer_registry_screen.dart';
 
 /// Fixed row height for the snap-to-item pending-sync list below. This is
 /// taller than the other lists since these cards can show retry/error text.
@@ -87,6 +88,24 @@ class _PendingSyncScreenState extends State<PendingSyncScreen> {
               : AppTheme.warning,
         ),
       );
+    }
+  }
+
+  /// Opens the full registration wizard pre-filled with this pending item's
+  /// data (jumping straight to Attachments), so the inspector can fix
+  /// whatever is blocking sync - most commonly an oversized document/PDF
+  /// that keeps timing out on a weak field connection - without retyping
+  /// the whole registration. See FarmerRegistryScreen.pendingItemToResume.
+  Future<void> _editItem(PendingSyncItem item) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FarmerRegistryScreen(pendingItemToResume: item),
+      ),
+    );
+    // Refresh the list in case the item was edited/resubmitted (or the
+    // inspector backed out without changes - harmless either way).
+    if (mounted) {
+      await _loadItems();
     }
   }
 
@@ -225,6 +244,16 @@ class _PendingSyncScreenState extends State<PendingSyncScreen> {
                                 ),
                               ),
                             ),
+                            if (item.registration != null)
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.edit_outlined,
+                                  color: AppTheme.primaryGreen,
+                                ),
+                                onPressed: () => _editItem(item),
+                                tooltip:
+                                    'Edit (e.g. remove an oversized document)',
+                              ),
                             IconButton(
                               icon: const Icon(
                                 Icons.delete_outline,
