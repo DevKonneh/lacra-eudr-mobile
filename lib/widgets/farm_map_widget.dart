@@ -471,9 +471,23 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
       if (!mounted) return;
 
       // 2. Immediately capture a photo AT this point.
+      //
+      // maxWidth/maxHeight downscale the captured photo BEFORE it's written
+      // to disk (image_picker does this natively on both Android/iOS), on
+      // top of the JPEG quality=85 compression. Full-resolution camera
+      // photos (often 3-8MB each even at quality 85) combined with several
+      // photos per registration were the root cause of field registrations
+      // silently failing to sync on weak rural connections (uploads timing
+      // out mid-transfer, then retrying the same oversized payload forever
+      // - confirmed against production "offline submission" records stuck
+      // in FAILED status with retryCount in the double digits). 1600px is
+      // more than enough resolution to identify a boundary point/evidence
+      // photo while typically cutting file size 5-10x.
       final XFile? photo = await _imagePicker.pickImage(
         source: ImageSource.camera,
         imageQuality: 85,
+        maxWidth: 1600,
+        maxHeight: 1600,
       );
 
       if (photo == null) {

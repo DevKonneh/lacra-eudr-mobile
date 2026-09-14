@@ -32,6 +32,14 @@ import 'auth_service.dart';
 class OfflineSyncService {
   static const String _legacyKey = 'pending_farmer_sync_queue';
 
+  /// After this many failed multipart (with-photos) sync attempts, a
+  /// queued item permanently switches to the JSON-only fallback endpoint
+  /// (see syncPendingItems()) so the farmer/farm record is saved even
+  /// though the photos can't be delivered on this connection - protects
+  /// against a registration being lost forever because of oversized
+  /// attachments on a weak rural connection.
+  static const int _kMaxMultipartRetriesBeforeFallback = 4;
+
   final ApiService _apiService = ApiService();
   final AuthService _authService = AuthService();
 
@@ -326,7 +334,8 @@ class OfflineSyncService {
     for (final item in items) {
       try {
         String? syncedFarmerId;
-        if (item.registration != null) {
+        bool usedFallback = false;
+        if (item.registration != null && !item.forceJsonFallback) {
           final response = await _syncViaMultipart(item, token);
           final responseData = response['data'];
           // The backend returns the full saved Farmer object as `data`
@@ -337,10 +346,17 @@ class OfflineSyncService {
               ? responseData['id']?.toString()
               : null;
         } else {
-          // Legacy item (enqueued before full snapshots existed) - sync
-          // the farmer/farm record via the JSON-only endpoint. No photos
-          // were ever captured for this item, since the old enqueue()
-          // never stored file paths in the first place.
+          // Either a legacy item (enqueued before full snapshots existed,
+          // no photos were ever captured for it), OR a full-snapshot item
+          // that has now been explicitly flagged to fall back to the
+          // JSON-only path (see forceJsonFallback below) after repeatedly
+          // failing to upload as multipart - almost always because the
+          // combined photo payload is too large for the field connection.
+          // Either way, this saves the CORE farmer/farm record (name,
+          // phone, location, boundary) even when photos can't be
+          // delivered, rather than leaving the data stuck in this queue
+          // indefinitely.
+          usedFallback = item.registration != null;
           final response = await _apiService.syncFarmerOffline(
             farmer: item.farmer,
             farms: item.farms,
@@ -352,7 +368,12 @@ class OfflineSyncService {
               : null;
         }
         synced++;
-        _log('Synced "${item.displayName}" successfully');
+        _log(
+          usedFallback
+              ? 'Synced "${item.displayName}" via JSON-only fallback '
+                  '(photos NOT uploaded - core record saved)'
+              : 'Synced "${item.displayName}" successfully',
+        );
         // Now that the real Farmer record exists, the shadow record no
         // longer needs to show up as "still offline" in admin visibility.
         unawaited(
@@ -362,6 +383,35 @@ class OfflineSyncService {
         failed++;
         item.retryCount += 1;
         item.lastError = e.toString().replaceAll('Exception: ', '');
+        // Safety net: a full-snapshot (multipart) item that has failed
+        // repeatedly is very likely failing because of upload SIZE (photos
+        // + signature + documents), not because the server is genuinely
+        // unreachable for plain JSON too - the small text-only
+        // _reportShadowRecord() calls made from this same device keep
+        // succeeding throughout these retries (see enqueue()/the catch
+        // block below), which is exactly this pattern. Once a full-
+        // snapshot item has failed [_kMaxMultipartRetriesBeforeFallback]
+        // times, permanently switch it to JSON-only sync on the NEXT
+        // attempt so the farmer/farm record itself doesn't stay stuck (and
+        // therefore at risk of being lost) forever - only the photos are
+        // sacrificed, and that is disclosed to the inspector via
+        // lastError below so they know to re-attach photos later if
+        // needed.
+        if (item.registration != null &&
+            !item.forceJsonFallback &&
+            item.retryCount >= _kMaxMultipartRetriesBeforeFallback) {
+          item.forceJsonFallback = true;
+          item.lastError =
+              'Photos/documents are too large to upload on this connection '
+              'after $_kMaxMultipartRetriesBeforeFallback attempts. The '
+              'next "Sync Now" will save this farmer WITHOUT photos so the '
+              'record is not lost - you can re-attach photos from the '
+              'farmer\'s profile later once on a better connection.';
+          _log(
+            'Switching "${item.displayName}" to JSON-only fallback after '
+            '${item.retryCount} failed multipart attempts',
+          );
+        }
         stillPending.add(item);
         _log('Failed to sync "${item.displayName}": ${item.lastError}');
         // Keep admin visibility up to date with the latest retry count/

@@ -23,6 +23,14 @@ class PendingSyncItem {
   int retryCount;
   String? lastError;
 
+  /// Set by OfflineSyncService once a full-snapshot (multipart, with
+  /// photos) item has failed to sync too many times - from then on, sync
+  /// attempts use the lightweight JSON-only endpoint instead (no photos),
+  /// so the core farmer/farm record can still be saved rather than staying
+  /// stuck in this queue indefinitely. See
+  /// OfflineSyncService._kMaxMultipartRetriesBeforeFallback.
+  bool forceJsonFallback;
+
   PendingSyncItem({
     required this.id,
     required this.farmer,
@@ -31,6 +39,7 @@ class PendingSyncItem {
     required this.createdAt,
     this.retryCount = 0,
     this.lastError,
+    this.forceJsonFallback = false,
   });
 
   /// Best-effort display name for showing in the pending-sync list UI.
@@ -54,6 +63,7 @@ class PendingSyncItem {
       createdAt: DateTime.parse(json['createdAt'] as String),
       retryCount: json['retryCount'] as int? ?? 0,
       lastError: json['lastError'] as String?,
+      forceJsonFallback: json['forceJsonFallback'] as bool? ?? false,
     );
   }
 
@@ -66,6 +76,7 @@ class PendingSyncItem {
       'createdAt': createdAt.toIso8601String(),
       'retryCount': retryCount,
       if (lastError != null) 'lastError': lastError,
+      if (forceJsonFallback) 'forceJsonFallback': forceJsonFallback,
     };
   }
 }

@@ -488,6 +488,8 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.camera,
         imageQuality: 85,
+        maxWidth: 1600,
+        maxHeight: 1600,
       );
       if (image != null) {
         setState(() {
@@ -507,6 +509,8 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
         imageQuality: 85,
+        maxWidth: 1600,
+        maxHeight: 1600,
       );
       if (image != null) {
         setState(() {

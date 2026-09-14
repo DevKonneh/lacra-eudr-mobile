@@ -140,8 +140,31 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
         allowMultiple: false,
       );
       if (result != null && result.files.single.path != null) {
+        final file = result.files.single;
+        // FilePicker (gallery-file picking) does NOT resize/compress like
+        // image_picker's camera capture does (see _pickFarmSelfie/
+        // _pickSignature above, both capped at 1600px) - a photo library
+        // image can be the phone's full native resolution (often 8-15MB+).
+        // Same 8MB cap as compliance documents, for the same reason: an
+        // uncapped file here reliably poisons the offline sync queue on
+        // weak field connections.
+        if (file.size > _kMaxAttachmentBytes) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '"${file.name}" is ${(file.size / (1024 * 1024)).toStringAsFixed(1)}MB - '
+                'too large to upload reliably in the field (max 8MB). '
+                'Please use the camera instead, or pick a smaller image.',
+              ),
+              backgroundColor: AppTheme.danger,
+              duration: const Duration(seconds: 6),
+            ),
+          );
+          return;
+        }
         setState(() {
-          _nationalIdPath = result.files.single.path!;
+          _nationalIdPath = file.path!;
           _updateData();
         });
       }
@@ -157,6 +180,8 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.camera,
         imageQuality: 85,
+        maxWidth: 1600,
+        maxHeight: 1600,
       );
       if (image != null) {
         setState(() {
@@ -176,6 +201,8 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
         imageQuality: 85,
+        maxWidth: 1600,
+        maxHeight: 1600,
       );
       if (image != null) {
         setState(() {
@@ -192,7 +219,11 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
 
   Future<void> _pickFarmPhotos() async {
     try {
-      final List<XFile> images = await _picker.pickMultiImage(imageQuality: 85);
+      final List<XFile> images = await _picker.pickMultiImage(
+        imageQuality: 85,
+        maxWidth: 1600,
+        maxHeight: 1600,
+      );
       if (images.isNotEmpty) {
         setState(() {
           _farmPhotosPaths.addAll(images.map((img) => img.path));
@@ -211,6 +242,8 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.camera,
         imageQuality: 85,
+        maxWidth: 1600,
+        maxHeight: 1600,
       );
       if (image != null) {
         setState(() {
