@@ -47,6 +47,13 @@
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyDjBhe0NHRAHbAF7-xK8OaCG1LgVIUoulo" />
+        <!-- Required by the image_cropper plugin's Android implementation
+             (uCrop) - used for cropping ID documents, farmer photo, and
+             compliance document photos before upload. -->
+        <activity
+            android:name="com.yalantis.ucrop.UCropActivity"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar"/>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
