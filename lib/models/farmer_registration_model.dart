@@ -16,6 +16,15 @@ class FarmerRegistrationModel {
   // enumeratorId columns).
   final String? cooperativeName;
   final String? cooperativeId;
+  // Tags how cooperativeName was captured: 'CDA_REGISTRY' when picked from
+  // the CDA searchable dropdown, or 'OTHER' when the enumerator used the
+  // "Other / Not Listed" free-text option (see cda_cooperatives.dart) -
+  // lets the backend/CDA team later reconcile OTHER entries against the
+  // official registry without guessing which records need review.
+  final String? cooperativeSource;
+  // Enumerator/inspector identity - now populated automatically in the
+  // background from the logged-in user (see AuthService/FarmerLocationStep)
+  // rather than shown/edited in the registration form UI.
   final String? enumeratorId;
 
   // Location Information
@@ -25,6 +34,11 @@ class FarmerRegistrationModel {
   final String inspectorName;
   final double? lat;
   final double? lng;
+  // GPS accuracy in meters at the moment of capture, and the timestamp of
+  // capture - kept separate from lat/lng so the UI can show "Accuracy: 8m"
+  // and warn on poor readings without re-deriving anything from lat/lng.
+  final double? gpsAccuracy;
+  final String? gpsCapturedAt;
   final String? directions;
 
   // Farm Information
@@ -84,6 +98,7 @@ class FarmerRegistrationModel {
     this.email,
     this.cooperativeName,
     this.cooperativeId,
+    this.cooperativeSource,
     this.enumeratorId,
     required this.county,
     this.district,
@@ -91,6 +106,8 @@ class FarmerRegistrationModel {
     required this.inspectorName,
     this.lat,
     this.lng,
+    this.gpsAccuracy,
+    this.gpsCapturedAt,
     this.directions,
     required this.farmName,
     required this.crop,
@@ -133,6 +150,7 @@ class FarmerRegistrationModel {
       if (email != null) 'email': email,
       if (cooperativeName != null) 'cooperativeName': cooperativeName,
       if (cooperativeId != null) 'cooperativeId': cooperativeId,
+      if (cooperativeSource != null) 'cooperativeSource': cooperativeSource,
       if (enumeratorId != null) 'enumeratorId': enumeratorId,
       'county': county,
       if (district != null) 'district': district,
@@ -140,6 +158,8 @@ class FarmerRegistrationModel {
       'inspectorName': inspectorName,
       if (lat != null) 'lat': lat.toString(),
       if (lng != null) 'lng': lng.toString(),
+      if (gpsAccuracy != null) 'gpsAccuracy': gpsAccuracy.toString(),
+      if (gpsCapturedAt != null) 'gpsCapturedAt': gpsCapturedAt,
       if (directions != null) 'directions': directions,
       'farmName': farmName,
       'crop': crop,
@@ -188,6 +208,7 @@ class FarmerRegistrationModel {
       'email': email,
       'cooperativeName': cooperativeName,
       'cooperativeId': cooperativeId,
+      'cooperativeSource': cooperativeSource,
       'enumeratorId': enumeratorId,
       'county': county,
       'district': district,
@@ -195,6 +216,8 @@ class FarmerRegistrationModel {
       'inspectorName': inspectorName,
       'lat': lat,
       'lng': lng,
+      'gpsAccuracy': gpsAccuracy,
+      'gpsCapturedAt': gpsCapturedAt,
       'directions': directions,
       'farmName': farmName,
       'crop': crop,
@@ -242,6 +265,7 @@ class FarmerRegistrationModel {
       email: json['email'] as String?,
       cooperativeName: json['cooperativeName'] as String?,
       cooperativeId: json['cooperativeId'] as String?,
+      cooperativeSource: json['cooperativeSource'] as String?,
       enumeratorId: json['enumeratorId'] as String?,
       county: json['county'] as String? ?? '',
       district: json['district'] as String?,
@@ -249,6 +273,8 @@ class FarmerRegistrationModel {
       inspectorName: json['inspectorName'] as String? ?? '',
       lat: (json['lat'] as num?)?.toDouble(),
       lng: (json['lng'] as num?)?.toDouble(),
+      gpsAccuracy: (json['gpsAccuracy'] as num?)?.toDouble(),
+      gpsCapturedAt: json['gpsCapturedAt'] as String?,
       directions: json['directions'] as String?,
       farmName: json['farmName'] as String? ?? '',
       crop: json['crop'] as String? ?? '',
@@ -298,6 +324,7 @@ class FarmerRegistrationModel {
     String? email,
     String? cooperativeName,
     String? cooperativeId,
+    String? cooperativeSource,
     String? enumeratorId,
     String? county,
     String? district,
@@ -305,6 +332,8 @@ class FarmerRegistrationModel {
     String? inspectorName,
     double? lat,
     double? lng,
+    double? gpsAccuracy,
+    String? gpsCapturedAt,
     String? directions,
     String? farmName,
     String? crop,
@@ -345,6 +374,7 @@ class FarmerRegistrationModel {
       email: email ?? this.email,
       cooperativeName: cooperativeName ?? this.cooperativeName,
       cooperativeId: cooperativeId ?? this.cooperativeId,
+      cooperativeSource: cooperativeSource ?? this.cooperativeSource,
       enumeratorId: enumeratorId ?? this.enumeratorId,
       county: county ?? this.county,
       district: district ?? this.district,
@@ -352,6 +382,8 @@ class FarmerRegistrationModel {
       inspectorName: inspectorName ?? this.inspectorName,
       lat: lat ?? this.lat,
       lng: lng ?? this.lng,
+      gpsAccuracy: gpsAccuracy ?? this.gpsAccuracy,
+      gpsCapturedAt: gpsCapturedAt ?? this.gpsCapturedAt,
       directions: directions ?? this.directions,
       farmName: farmName ?? this.farmName,
       crop: crop ?? this.crop,

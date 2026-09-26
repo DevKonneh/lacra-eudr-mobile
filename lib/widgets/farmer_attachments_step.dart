@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import '../theme/app_theme.dart';
+import 'media_capture_field.dart';
 
 class FarmerAttachmentsStep extends StatefulWidget {
   final Function(Map<String, dynamic>) onDataChanged;
@@ -20,9 +21,10 @@ class FarmerAttachmentsStep extends StatefulWidget {
 
 /// EUDR due-diligence compliance documents collected alongside the farmer's
 /// photos - these prove land rights/affiliation, distinct from the basic
-/// "National ID photo" already captured above. Backend enum values live in
-/// FarmDocument.ts's DocumentType - keep the label strings below IDENTICAL
-/// to those enum values, since they're sent as-is in complianceDocTypes.
+/// "National ID photo" already captured in the Personal Info step. Backend
+/// enum values live in FarmDocument.ts's DocumentType - keep the label
+/// strings below IDENTICAL to those enum values, since they're sent as-is
+/// in complianceDocTypes.
 const List<String> kComplianceDocumentTypes = [
   'National ID / Identification Document',
   'Land Deed / Land Ownership Document',
@@ -31,31 +33,23 @@ const List<String> kComplianceDocumentTypes = [
   'Cooperative/Association Membership Document',
 ];
 
-// Compliance documents (PDFs/scans) and the National ID file are NOT
-// compressed like camera photos are (see imageQuality: 85 below) - a
-// multi-page scanned PDF can easily be 10-50MB. Uploading that over a weak
-// field connection reliably times out even with a generous upload window,
-// and the inspector has no way to tell why "Sync Now" keeps failing. Cap
-// picked files here so the problem is caught immediately, with a clear
-// message, instead of silently poisoning the offline sync queue.
-const int _kMaxAttachmentBytes = 8 * 1024 * 1024; // 8MB
-
 class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
   final ImagePicker _picker = ImagePicker();
-  String? _nationalIdPath;
   String? _farmSelfiePath;
   String? _signaturePath;
   List<String> _farmPhotosPaths = [];
   bool _consent = false;
   // Compliance document type -> local file path. Only types the inspector
-  // actually picked a file for are present as keys.
+  // actually picked/captured a file for are present as keys. Each file has
+  // already been compressed to the 500KB-1.5MB target (2MB hard cap) by
+  // MediaCaptureField/MediaOptimizerService by the time it lands here -
+  // this step never re-compresses or re-validates size on its own.
   final Map<String, String> _complianceDocs = {};
 
   @override
   void initState() {
     super.initState();
     if (widget.initialData != null) {
-      _nationalIdPath = widget.initialData!['nationalIdPath'];
       _farmSelfiePath = widget.initialData!['farmSelfiePath'];
       _signaturePath = widget.initialData!['signaturePath'];
       _farmPhotosPaths = List<String>.from(
@@ -77,7 +71,6 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
 
   void _updateData() {
     widget.onDataChanged({
-      'nationalIdPath': _nationalIdPath,
       'farmSelfiePath': _farmSelfiePath,
       'signaturePath': _signaturePath,
       'farmPhotosPaths': _farmPhotosPaths,
@@ -88,91 +81,15 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
     });
   }
 
-  Future<void> _pickComplianceDoc(String type) async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
-        allowMultiple: false,
-      );
-      if (result != null && result.files.single.path != null) {
-        final file = result.files.single;
-        if (file.size > _kMaxAttachmentBytes) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '"${file.name}" is ${(file.size / (1024 * 1024)).toStringAsFixed(1)}MB - '
-                'too large to upload reliably in the field (max 8MB). '
-                'Please re-scan at a lower resolution/quality, or take a '
-                'photo of the document instead of a PDF scan.',
-              ),
-              backgroundColor: AppTheme.danger,
-              duration: const Duration(seconds: 6),
-            ),
-          );
-          return;
-        }
-        setState(() {
-          _complianceDocs[type] = file.path!;
-          _updateData();
-        });
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error picking document: $e')));
-    }
-  }
-
-  void _removeComplianceDoc(String type) {
+  void _setComplianceDoc(String type, String? path) {
     setState(() {
-      _complianceDocs.remove(type);
+      if (path == null) {
+        _complianceDocs.remove(type);
+      } else {
+        _complianceDocs[type] = path;
+      }
       _updateData();
     });
-  }
-
-  Future<void> _pickNationalId() async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.image,
-        allowMultiple: false,
-      );
-      if (result != null && result.files.single.path != null) {
-        final file = result.files.single;
-        // FilePicker (gallery-file picking) does NOT resize/compress like
-        // image_picker's camera capture does (see _pickFarmSelfie/
-        // _pickSignature above, both capped at 1600px) - a photo library
-        // image can be the phone's full native resolution (often 8-15MB+).
-        // Same 8MB cap as compliance documents, for the same reason: an
-        // uncapped file here reliably poisons the offline sync queue on
-        // weak field connections.
-        if (file.size > _kMaxAttachmentBytes) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '"${file.name}" is ${(file.size / (1024 * 1024)).toStringAsFixed(1)}MB - '
-                'too large to upload reliably in the field (max 8MB). '
-                'Please use the camera instead, or pick a smaller image.',
-              ),
-              backgroundColor: AppTheme.danger,
-              duration: const Duration(seconds: 6),
-            ),
-          );
-          return;
-        }
-        setState(() {
-          _nationalIdPath = file.path!;
-          _updateData();
-        });
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error picking file: $e')));
-    }
   }
 
   Future<void> _pickFarmSelfie() async {
@@ -298,54 +215,6 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 16),
-          const Text(
-            'Upload National ID / Proof (optional)',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ElevatedButton.icon(
-            onPressed: _pickNationalId,
-            icon: const Icon(Icons.upload_file),
-            label: const Text('Choose File'),
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryGreen),
-          ),
-          if (_nationalIdPath != null) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.successBg,
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                border: Border.all(color: AppTheme.success.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: AppTheme.success, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _nationalIdPath!.split('/').last,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 18),
-                    onPressed: () {
-                      setState(() {
-                        _nationalIdPath = null;
-                        _updateData();
-                      });
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ],
-          const SizedBox(height: 24),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -376,9 +245,9 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
                       ),
                       const SizedBox(height: 4),
                       const Text(
-                        'Upload a photo or PDF of any documents the farmer '
-                        'has available. Not all documents will apply to '
-                        'every farmer - upload whichever are relevant.',
+                        'Take a photo or upload a scan of any documents the '
+                        'farmer has available. Not all documents will apply '
+                        'to every farmer - capture whichever are relevant.',
                         style: TextStyle(
                           fontSize: 11.5,
                           color: AppTheme.textSecondary,
@@ -390,80 +259,16 @@ class _FarmerAttachmentsStepState extends State<FarmerAttachmentsStep> {
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           ...kComplianceDocumentTypes.map((type) {
-            final path = _complianceDocs[type];
             return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: path != null
-                      ? AppTheme.successBg
-                      : AppTheme.background,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                  border: Border.all(
-                    color: path != null
-                        ? AppTheme.success.withValues(alpha: 0.3)
-                        : AppTheme.border,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      path != null
-                          ? Icons.check_circle
-                          : Icons.insert_drive_file_outlined,
-                      color: path != null
-                          ? AppTheme.success
-                          : AppTheme.textMuted,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            type,
-                            style: const TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w700,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
-                          if (path != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: Text(
-                                path.split('/').last,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: AppTheme.textSecondary,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    if (path != null)
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 18),
-                        onPressed: () => _removeComplianceDoc(type),
-                      )
-                    else
-                      TextButton.icon(
-                        onPressed: () => _pickComplianceDoc(type),
-                        icon: const Icon(Icons.upload_file, size: 16),
-                        label: const Text(
-                          'Upload',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                      ),
-                  ],
-                ),
+              padding: const EdgeInsets.only(bottom: 16),
+              child: MediaCaptureField(
+                label: type,
+                kind: MediaCaptureKind.document,
+                allowPdf: true,
+                initialPath: _complianceDocs[type],
+                onChanged: (path) => _setComplianceDoc(type, path),
               ),
             );
           }),

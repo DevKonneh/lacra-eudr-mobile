@@ -151,38 +151,68 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
     });
   }
 
-  bool _validateStep(int step) {
+  /// Returns a specific, user-facing validation error message for [step],
+  /// or null if the step's required data is complete (task spec section
+  /// 18: "Validation before Ready-to-Sync" - clear error messages instead
+  /// of a generic "please complete all fields" toast).
+  String? _stepValidationMessage(int step) {
+    bool isEmpty(String key) =>
+        _formData[key] == null || _formData[key].toString().isEmpty;
+
     switch (step) {
       case 0: // Personal Info
-        return _formData['fullName'] != null &&
-            _formData['fullName'].toString().isNotEmpty &&
-            _formData['gender'] != null &&
-            _formData['gender'].toString().isNotEmpty &&
-            _formData['phone'] != null &&
-            _formData['phone'].toString().isNotEmpty;
+        if (isEmpty('fullName')) return 'Farmer full name is required.';
+        if (isEmpty('gender')) return 'Please select a gender.';
+        if (isEmpty('phone')) return 'Phone number is required.';
+        if (isEmpty('idType')) return 'Please select an ID type.';
+        if (isEmpty('nationalId')) return 'ID Number is required.';
+        if (isEmpty('nationalIdPath')) {
+          return 'Please capture or upload the ID document.';
+        }
+        if (isEmpty('farmerPhotoPath')) {
+          return "Please capture the farmer's photo.";
+        }
+        return null;
       case 1: // Location & GPS
-        return _formData['county'] != null &&
-            _formData['county'].toString().isNotEmpty &&
-            _formData['community'] != null &&
-            _formData['community'].toString().isNotEmpty &&
-            _formData['inspectorName'] != null &&
-            _formData['inspectorName'].toString().isNotEmpty;
+        if (isEmpty('county')) return 'Please select a county.';
+        if (isEmpty('district')) return 'Please select a district.';
+        if (isEmpty('community')) return 'Community is required.';
+        if (_formData['lat'] == null || _formData['lng'] == null) {
+          return 'GPS location has not been captured. Tap "CAPTURE GPS '
+              'LOCATION" before continuing.';
+        }
+        // Internal integrity guard - inspectorName/enumeratorId are
+        // auto-attached from the logged-in session in the background
+        // (task spec section 7) and should always be present; if not,
+        // the session context was lost and the enumerator must re-login.
+        if (isEmpty('inspectorName')) {
+          return 'Enumerator identity could not be verified. Please log '
+              'in again.';
+        }
+        return null;
       case 2: // Farm Details
         // Farm name is optional - will be auto-generated if empty
-        return _formData['crop'] != null &&
-            _formData['crop'].toString().isNotEmpty &&
-            _formData['ownership'] != null &&
-            _formData['ownership'].toString().isNotEmpty;
+        if (isEmpty('crop')) return 'Please select a crop.';
+        if (isEmpty('ownership')) return 'Please select an ownership type.';
+        return null;
       case 3: // Mapping
-        return _boundaryJson != null && _boundaryJson!.isNotEmpty;
+        if (_boundaryJson == null || _boundaryJson!.isEmpty) {
+          return 'Please draw the farm boundary on the map.';
+        }
+        return null;
       case 4: // Attachments
-        return _formData['consent'] == true;
+        if (_formData['consent'] != true) {
+          return 'Please confirm consent before proceeding.';
+        }
+        return null;
       case 5: // Review
-        return true;
+        return null;
       default:
-        return false;
+        return 'This step is not complete.';
     }
   }
+
+  bool _validateStep(int step) => _stepValidationMessage(step) == null;
 
   void _markStepCompleted(int step) {
     if (_validateStep(step)) {
@@ -197,7 +227,8 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
   }
 
   void _nextStep() {
-    if (_validateStep(_currentStep)) {
+    final errorMessage = _stepValidationMessage(_currentStep);
+    if (errorMessage == null) {
       _markStepCompleted(_currentStep);
       if (_currentStep < _steps.length - 1) {
         setState(() {
@@ -206,10 +237,7 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please complete all required fields'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
       );
     }
   }
@@ -234,13 +262,14 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
   Future<void> _submitForm() async {
     // Validate all steps
     for (int i = 0; i < _steps.length - 1; i++) {
-      if (!_validateStep(i)) {
+      final errorMessage = _stepValidationMessage(i);
+      if (errorMessage != null) {
         setState(() {
           _currentStep = i;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Please complete step ${i + 1}'),
+            content: Text('Step ${i + 1}: $errorMessage'),
             backgroundColor: Colors.red,
           ),
         );
@@ -288,6 +317,8 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
         inspectorName: _formData['inspectorName'] ?? '',
         lat: _formData['lat'],
         lng: _formData['lng'],
+        gpsAccuracy: (_formData['gpsAccuracy'] as num?)?.toDouble(),
+        gpsCapturedAt: _formData['gpsCapturedAt'],
         directions: _formData['directions'],
         farmName: _formData['farmName'] ?? '',
         crop: _formData['crop'] ?? '',
@@ -314,6 +345,7 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
             : null,
         cooperativeName: _formData['cooperativeName'],
         cooperativeId: _formData['cooperativeId'],
+        cooperativeSource: _formData['cooperativeSource'],
         enumeratorId: _formData['enumeratorId'],
         numberOfTrees: _formData['numberOfTrees']?.toString(),
         yearsInCultivation: _formData['yearsInCultivation']?.toString(),

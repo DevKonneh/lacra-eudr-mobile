@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 import 'package:intl/intl.dart';
+import '../data/cda_cooperatives.dart';
 import '../theme/app_theme.dart';
+import 'media_capture_field.dart';
 
 class FarmerPersonalInfoStep extends StatefulWidget {
   final Function(Map<String, dynamic>) onDataChanged;
@@ -29,20 +29,31 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
   final _idTypeOtherController = TextEditingController();
   final _nationalIdController = TextEditingController();
   final _emailController = TextEditingController();
-  final _cooperativeNameController = TextEditingController();
-  final _cooperativeIdController = TextEditingController();
+  final _cooperativeOtherNameController = TextEditingController();
   String? _idType;
 
+  // Task spec section 1: ID Type must be one of these four options (no
+  // free-form "Voting ID" etc. anymore - simplified to match the standard
+  // set of IDs the CDA/LACRA actually accept).
   static const List<String> _idTypeOptions = [
-    'Driver License',
-    'National ID card',
+    'National ID',
     'Passport',
-    'Voting ID',
-    'Others',
+    "Driver's License",
+    'Other',
   ];
-  final ImagePicker _picker = ImagePicker();
+
   String? _photoPath;
+  String? _idDocumentPath;
   DateTime? _selectedDate;
+
+  // Cooperative affiliation (task spec section 2): replaces the old free-
+  // text "Cooperative Name" + "Cooperative ID" fields with a searchable
+  // dropdown backed by the CDA registry placeholder dataset, plus an
+  // "Other / Not Listed" option that reveals a free-text name field.
+  // _cooperativeName holds either a real CDA entry's name, or (when
+  // _cooperativeSource == OTHER) whatever the enumerator typed manually.
+  String? _cooperativeName;
+  String _cooperativeSource = ''; // 'CDA_REGISTRY' | 'OTHER' | ''
 
   // Complete list of countries
   static const List<String> _allCountries = [
@@ -261,19 +272,47 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
       }
       _nationalityController.text = widget.initialData!['nationality'] ?? '';
       final idTypeValue = widget.initialData!['idType'] as String?;
-      _idType = (idTypeValue != null && _idTypeOptions.contains(idTypeValue))
-          ? idTypeValue
-          : null;
+      // Backwards-compat: older saved drafts/pending items may still carry
+      // the previous option labels (e.g. "National ID card", "Others") -
+      // map those onto the new 4-option set so existing data still shows
+      // correctly instead of falling back to "no selection".
+      _idType = _normalizeIdType(idTypeValue);
       _idTypeOtherController.text = widget.initialData!['idTypeOther'] ?? '';
       _nationalIdController.text = widget.initialData!['nationalId'] ?? '';
       _emailController.text = widget.initialData!['email'] ?? '';
-      _cooperativeNameController.text =
-          widget.initialData!['cooperativeName'] ?? '';
-      _cooperativeIdController.text =
-          widget.initialData!['cooperativeId'] ?? '';
+      final existingCoopName = widget.initialData!['cooperativeName'] as String?;
+      final existingCoopSource =
+          widget.initialData!['cooperativeSource'] as String? ?? '';
+      if (existingCoopName != null && existingCoopName.isNotEmpty) {
+        _cooperativeName = existingCoopName;
+        _cooperativeSource = existingCoopSource.isNotEmpty
+            ? existingCoopSource
+            : 'CDA_REGISTRY';
+        if (_cooperativeSource == 'OTHER') {
+          _cooperativeOtherNameController.text = existingCoopName;
+        }
+      }
       _photoPath = widget.initialData!['farmerPhotoPath'];
+      _idDocumentPath = widget.initialData!['nationalIdPath'];
     }
     _updateData();
+  }
+
+  String? _normalizeIdType(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    if (_idTypeOptions.contains(raw)) return raw;
+    switch (raw) {
+      case 'National ID card':
+        return 'National ID';
+      case 'Driver License':
+        return "Driver's License";
+      case 'Voting ID':
+        return 'Other';
+      case 'Others':
+        return 'Other';
+      default:
+        return null;
+    }
   }
 
   @override
@@ -286,8 +325,7 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
     _idTypeOtherController.dispose();
     _nationalIdController.dispose();
     _emailController.dispose();
-    _cooperativeNameController.dispose();
-    _cooperativeIdController.dispose();
+    _cooperativeOtherNameController.dispose();
     super.dispose();
   }
 
@@ -305,13 +343,17 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
       'phone': phoneWithPrefix,
       'nationality': _nationalityController.text.trim(),
       'idType': _idType ?? '',
-      'idTypeOther': _idType == 'Others'
+      'idTypeOther': _idType == 'Other'
           ? _idTypeOtherController.text.trim()
           : '',
       'nationalId': _nationalIdController.text.trim(),
+      'nationalIdPath': _idDocumentPath,
       'email': _emailController.text.trim(),
-      'cooperativeName': _cooperativeNameController.text.trim(),
-      'cooperativeId': _cooperativeIdController.text.trim(),
+      'cooperativeName': _cooperativeName ?? '',
+      // cooperativeId intentionally no longer collected from the
+      // enumerator (task spec section 2) - do not fabricate one.
+      'cooperativeId': '',
+      'cooperativeSource': _cooperativeSource,
       'farmerPhotoPath': _photoPath,
     });
   }
@@ -483,46 +525,232 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
     );
   }
 
-  Future<void> _pickImage() async {
-    try {
-      final XFile? image = await _picker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 85,
-        maxWidth: 1600,
-        maxHeight: 1600,
-      );
-      if (image != null) {
-        setState(() {
-          _photoPath = image.path;
-          _updateData();
-        });
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error picking image: $e')));
+  /// Searchable "Cooperative / Group Affiliation" picker, backed by the
+  /// CDA registry placeholder dataset (see cda_cooperatives.dart) - mirrors
+  /// the nationality bottom-sheet's search-as-you-type pattern above.
+  /// Always includes an "Other / Not Listed" entry at the top of results
+  /// so the enumerator is never blocked from registering a farmer whose
+  /// cooperative simply isn't in the (currently placeholder) dataset yet.
+  void _showCooperativeBottomSheet() {
+    final TextEditingController searchController = TextEditingController();
+    List<CdaCooperative> filtered = List.from(CdaCooperatives.entries);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            void filterCoops(String query) {
+              setModalState(() {
+                filtered = CdaCooperatives.search(query);
+              });
+            }
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.8,
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Select Cooperative',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Search the CDA (Cooperative Development Agency) '
+                      'registry, e.g. "Gbarnga"',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textMuted,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search cooperative name or county...',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                searchController.clear();
+                                filterCoops('');
+                              },
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      filled: true,
+                      fillColor: AppTheme.background,
+                    ),
+                    onChanged: filterCoops,
+                  ),
+                  const SizedBox(height: 12),
+                  // "Other / Not Listed" is always visible so an enumerator
+                  // can pick it even before typing anything.
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppTheme.warningBg,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: AppTheme.warning.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: ListTile(
+                      leading: const Icon(
+                        Icons.edit_note,
+                        color: AppTheme.warning,
+                      ),
+                      title: const Text(
+                        'Other / Not Listed',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      subtitle: const Text(
+                        'Enter the cooperative name manually',
+                        style: TextStyle(fontSize: 11.5),
+                      ),
+                      onTap: () async {
+                        Navigator.pop(context);
+                        await _promptOtherCooperativeName();
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Expanded(
+                    child: filtered.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.search_off,
+                                  size: 48,
+                                  color: AppTheme.textMuted,
+                                ),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'No cooperatives found.\nUse "Other / Not Listed" above.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: AppTheme.textSecondary,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: filtered.length,
+                            itemBuilder: (context, index) {
+                              final coop = filtered[index];
+                              final isSelected =
+                                  _cooperativeSource == 'CDA_REGISTRY' &&
+                                  _cooperativeName == coop.name;
+                              return ListTile(
+                                title: Text(coop.name),
+                                subtitle: coop.county != null
+                                    ? Text(coop.county!)
+                                    : null,
+                                trailing: isSelected
+                                    ? const Icon(
+                                        Icons.check,
+                                        color: AppTheme.primaryGreen,
+                                      )
+                                    : null,
+                                selected: isSelected,
+                                selectedTileColor: AppTheme.paleGreen,
+                                onTap: () {
+                                  setState(() {
+                                    _cooperativeSource = 'CDA_REGISTRY';
+                                    _cooperativeName = coop.name;
+                                    _updateData();
+                                  });
+                                  Navigator.pop(context);
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _promptOtherCooperativeName() async {
+    _cooperativeOtherNameController.text =
+        _cooperativeSource == 'OTHER' ? (_cooperativeName ?? '') : '';
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Enter Cooperative Name'),
+          content: TextField(
+            controller: _cooperativeOtherNameController,
+            autofocus: true,
+            decoration: const InputDecoration(
+              hintText: 'e.g., Bopolu Farmers Cooperative',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(
+                ctx,
+                _cooperativeOtherNameController.text.trim(),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryGreen,
+              ),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+    if (result != null && result.isNotEmpty) {
+      setState(() {
+        _cooperativeSource = 'OTHER';
+        _cooperativeName = result;
+        _updateData();
+      });
     }
   }
 
-  Future<void> _pickImageFromGallery() async {
-    try {
-      final XFile? image = await _picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 85,
-        maxWidth: 1600,
-        maxHeight: 1600,
-      );
-      if (image != null) {
-        setState(() {
-          _photoPath = image.path;
-          _updateData();
-        });
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error picking image: $e')));
-    }
+  void _clearCooperative() {
+    setState(() {
+      _cooperativeSource = '';
+      _cooperativeName = null;
+      _cooperativeOtherNameController.clear();
+      _updateData();
+    });
   }
 
   bool validate() {
@@ -642,13 +870,26 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
               ),
               onTap: _showNationalityBottomSheet,
             ),
-            const SizedBox(height: 16),
+
+            // -----------------------------------------------------------
+            // Farmer ID Information (task spec section 1)
+            // -----------------------------------------------------------
+            const SizedBox(height: 24),
+            const Text(
+              'Farmer ID Information',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
             DropdownButtonFormField<String>(
               initialValue: _idType,
               style: const TextStyle(fontSize: 14, color: Colors.black87),
               dropdownColor: Colors.white,
               iconEnabledColor: Colors.black87,
-              decoration: const InputDecoration(labelText: 'Type of ID'),
+              decoration: const InputDecoration(labelText: 'ID Type *'),
               items: _idTypeOptions
                   .map(
                     (option) => DropdownMenuItem(
@@ -663,24 +904,30 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
               onChanged: (value) {
                 setState(() {
                   _idType = value;
-                  if (_idType != 'Others') {
+                  if (_idType != 'Other') {
                     _idTypeOtherController.clear();
                   }
                   _updateData();
                 });
               },
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please select the ID type';
+                }
+                return null;
+              },
             ),
-            if (_idType == 'Others') ...[
+            if (_idType == 'Other') ...[
               const SizedBox(height: 16),
               TextFormField(
                 controller: _idTypeOtherController,
                 style: const TextStyle(fontSize: 14),
                 decoration: const InputDecoration(
-                  labelText: 'Please specify ID type',
+                  labelText: 'Please specify ID type *',
                   hintText: 'e.g., Refugee ID Card',
                 ),
                 validator: (value) {
-                  if (_idType == 'Others' &&
+                  if (_idType == 'Other' &&
                       (value == null || value.trim().isEmpty)) {
                     return 'Please specify the ID type';
                   }
@@ -693,10 +940,39 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
               controller: _nationalIdController,
               style: const TextStyle(fontSize: 14),
               decoration: const InputDecoration(
-                labelText: 'ID Card Number / Value',
-                hintText: 'Enter the ID number shown on the selected ID',
+                labelText: 'ID Number *',
+                hintText: 'Enter the number shown on the selected ID',
               ),
+              // Required whenever an ID Type has been chosen - this is the
+              // "required ID Number field tied to ID Type" from task spec
+              // section 1. If no ID type is set yet, don't nag the
+              // enumerator until they pick one.
+              validator: (value) {
+                if (_idType != null &&
+                    _idType!.isNotEmpty &&
+                    (value == null || value.trim().isEmpty)) {
+                  return 'ID Number is required.';
+                }
+                return null;
+              },
             ),
+            const SizedBox(height: 16),
+            MediaCaptureField(
+              label: 'ID Document *',
+              helperText:
+                  'Take a photo of the ID or upload a scan (JPG/PNG/PDF, max 2MB).',
+              kind: MediaCaptureKind.document,
+              allowPdf: true,
+              required: true,
+              initialPath: _idDocumentPath,
+              onChanged: (path) {
+                setState(() {
+                  _idDocumentPath = path;
+                  _updateData();
+                });
+              },
+            ),
+
             const SizedBox(height: 16),
             TextFormField(
               controller: _emailController,
@@ -715,6 +991,10 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
                 return null;
               },
             ),
+
+            // -----------------------------------------------------------
+            // Cooperative / Group Affiliation (task spec section 2)
+            // -----------------------------------------------------------
             const SizedBox(height: 24),
             const Text(
               'Group / Cooperative Affiliation (Optional)',
@@ -725,90 +1005,73 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
               ),
             ),
             const SizedBox(height: 8),
-            TextFormField(
-              controller: _cooperativeNameController,
-              style: const TextStyle(fontSize: 14),
-              decoration: const InputDecoration(
-                labelText: 'Cooperative Name',
-                hintText: 'e.g., Lofa Cocoa Farmers Union',
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _cooperativeIdController,
-              style: const TextStyle(fontSize: 14),
-              decoration: const InputDecoration(
-                labelText: 'Cooperative ID',
-                hintText: 'e.g., COOP-0231',
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Farmer Photo (upload/capture)',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _pickImageFromGallery,
-                    icon: const Icon(Icons.photo_library, size: 18),
-                    label: const Text(
-                      'Choose from Gallery',
-                      style: TextStyle(fontSize: 12),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      minimumSize: const Size(0, 36),
-                    ),
+            InkWell(
+              onTap: _showCooperativeBottomSheet,
+              borderRadius: BorderRadius.circular(12),
+              child: InputDecorator(
+                decoration: InputDecoration(
+                  labelText: 'Cooperative',
+                  hintText: 'Tap to search CDA registry',
+                  suffixIcon: (_cooperativeName != null &&
+                          _cooperativeName!.isNotEmpty)
+                      ? IconButton(
+                          icon: const Icon(Icons.close, size: 18),
+                          onPressed: _clearCooperative,
+                        )
+                      : const Icon(Icons.search),
+                ),
+                child: Text(
+                  (_cooperativeName != null && _cooperativeName!.isNotEmpty)
+                      ? _cooperativeName!
+                      : 'Not selected',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: (_cooperativeName != null &&
+                            _cooperativeName!.isNotEmpty)
+                        ? Colors.black87
+                        : AppTheme.textMuted,
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _pickImage,
-                    icon: const Icon(Icons.camera_alt, size: 18),
-                    label: const Text(
-                      'Take Photo',
-                      style: TextStyle(fontSize: 12),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryGreen,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      minimumSize: const Size(0, 36),
+              ),
+            ),
+            if (_cooperativeSource == 'OTHER' &&
+                _cooperativeName != null &&
+                _cooperativeName!.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const Icon(Icons.info_outline,
+                      size: 14, color: AppTheme.warning),
+                  const SizedBox(width: 6),
+                  const Expanded(
+                    child: Text(
+                      'Not found in CDA registry - flagged for later review.',
+                      style: TextStyle(fontSize: 11.5, color: AppTheme.warning),
                     ),
                   ),
-                ),
-              ],
-            ),
-            if (_photoPath != null) ...[
-              const SizedBox(height: 16),
-              Container(
-                height: 200,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                  border: Border.all(color: AppTheme.border),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                  child: Image.file(File(_photoPath!), fit: BoxFit.cover),
-                ),
+                ],
               ),
             ],
-            const SizedBox(height: 16),
-            const Text(
-              'Tip: On a phone/tablet, the camera option will appear automatically for photo capture.',
-              style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+
+            // -----------------------------------------------------------
+            // Farmer Photo (task spec section 3) - official profile photo
+            // -----------------------------------------------------------
+            const SizedBox(height: 24),
+            MediaCaptureField(
+              label: 'Farmer Photo *',
+              helperText:
+                  'Portrait photo used as the farmer\'s official profile picture.',
+              kind: MediaCaptureKind.profilePhoto,
+              initialPath: _photoPath,
+              required: true,
+              onChanged: (path) {
+                setState(() {
+                  _photoPath = path;
+                  _updateData();
+                });
+              },
             ),
+            const SizedBox(height: 16),
           ],
         ),
       ),

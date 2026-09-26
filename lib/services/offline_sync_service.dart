@@ -109,8 +109,11 @@ class OfflineSyncService {
       'consent': data.consent,
       'cooperativeName': data.cooperativeName,
       'cooperativeId': data.cooperativeId,
+      'cooperativeSource': data.cooperativeSource,
       'enumeratorId': data.enumeratorId,
       'enumeratorName': data.inspectorName,
+      if (data.gpsAccuracy != null) 'gpsAccuracy': data.gpsAccuracy,
+      if (data.gpsCapturedAt != null) 'gpsCapturedAt': data.gpsCapturedAt,
     };
   }
 
@@ -169,11 +172,20 @@ class OfflineSyncService {
         farmPayload['location'] != null;
 
     final item = PendingSyncItem(
+      // Stable local record id - generated ONCE here and never changed
+      // afterwards, including through a successful sync (task spec
+      // section 9). Also used as the dedup key sent to the backend as
+      // `clientRecordId` (task spec section 13).
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       farmer: _buildFarmerPayload(data),
       farms: hasUsableFarm ? [farmPayload] : [],
       registration: data.toFullJson(),
       createdAt: DateTime.now(),
+      // A record only ever reaches enqueue() after passing the wizard's
+      // full validation (FarmerRegistryScreen._submitForm validates every
+      // step before calling this), so it is complete and ready to sync
+      // the moment it's queued (task spec section 12/18).
+      status: SyncStatus.readyToSync,
     );
 
     items.add(item);
@@ -303,20 +315,42 @@ class OfflineSyncService {
     await prefs.setString(key, encoded);
   }
 
-  /// Attempts to sync every pending item to the backend. Items that
-  /// succeed are removed from the queue; items that fail keep their
-  /// place in the queue with an incremented retry count and the last
-  /// error message recorded, so the UI can show why they're still
-  /// pending.
+  /// Attempts to sync EVERY pending item to the backend, regardless of
+  /// selection state. Kept only for backward compatibility with any
+  /// existing callers - the app's UI (PendingSyncScreen) should call
+  /// [syncSelectedItems] instead, so syncing only ever happens for records
+  /// the enumerator explicitly checked (task spec sections 10/11).
+  Future<OfflineSyncResult> syncPendingItems() async {
+    final all = await getPendingItems();
+    return syncSelectedItems(all.map((i) => i.id).toList());
+  }
+
+  /// Syncs ONLY the pending items whose id is in [ids] - every other
+  /// queued record is left completely untouched, still marked Ready to
+  /// Sync, and is NOT uploaded (task spec sections 10/13/15: selective,
+  /// farm-level sync package, no accidental duplicate uploads of
+  /// unrelated farms).
   ///
   /// Items that carry a full [PendingSyncItem.registration] snapshot are
   /// synced via [_syncViaMultipart], replaying the exact multipart
   /// [ApiService.registerFarmer] call so any locally-captured photos/
-  /// signature upload correctly. Older items enqueued before this
-  /// snapshot existed (no [PendingSyncItem.registration]) fall back to
-  /// the JSON-only [ApiService.syncFarmerOffline] - the farmer/farm record
-  /// itself is still saved, just without photos, so nothing is lost.
-  Future<OfflineSyncResult> syncPendingItems() async {
+  /// signature upload correctly - this bundles the farmer, location, farm,
+  /// and compliance-document data together as one logical package, exactly
+  /// as it was captured. Older items enqueued before this snapshot existed
+  /// (no [PendingSyncItem.registration]) fall back to the JSON-only
+  /// [ApiService.syncFarmerOffline] - the farmer/farm record itself is
+  /// still saved, just without photos, so nothing is lost.
+  ///
+  /// On success, an item is REMOVED from the queue entirely (task spec
+  /// section 13: never re-uploaded on a later sync). On failure, it stays
+  /// in the queue with its retry count/lastError updated so the UI can
+  /// show "Sync Failed" with a reason and a per-item Retry action.
+  Future<OfflineSyncResult> syncSelectedItems(List<String> ids) async {
+    if (ids.isEmpty) {
+      return const OfflineSyncResult(synced: 0, failed: 0, remaining: 0);
+    }
+    final idSet = ids.toSet();
+
     final prefs = await SharedPreferences.getInstance();
     final key = _keyFor(await _currentUserId());
     await _migrateLegacyIfNeeded(prefs, key);
@@ -329,9 +363,17 @@ class OfflineSyncService {
     final token = await _authService.getToken();
     int synced = 0;
     int failed = 0;
-    final List<PendingSyncItem> stillPending = [];
+    final List<PendingSyncItem> finalQueue = [];
 
     for (final item in items) {
+      if (!idSet.contains(item.id)) {
+        // Not selected for this sync run - leave completely untouched.
+        finalQueue.add(item);
+        continue;
+      }
+
+      item.status = SyncStatus.syncing;
+
       try {
         String? syncedFarmerId;
         bool usedFallback = false;
@@ -361,6 +403,7 @@ class OfflineSyncService {
             farmer: item.farmer,
             farms: item.farms,
             authToken: token,
+            clientRecordId: item.id,
           );
           final responseData = response['data'];
           syncedFarmerId = responseData is Map
@@ -368,6 +411,7 @@ class OfflineSyncService {
               : null;
         }
         synced++;
+        item.status = SyncStatus.synced;
         _log(
           usedFallback
               ? 'Synced "${item.displayName}" via JSON-only fallback '
@@ -379,10 +423,14 @@ class OfflineSyncService {
         unawaited(
           _resolveShadowRecord(item.id, syncedFarmerId: syncedFarmerId),
         );
+        // Successfully synced items are dropped from the queue entirely -
+        // NOT added to finalQueue - so they can never be re-uploaded by a
+        // later sync run (task spec section 13).
       } catch (e) {
         failed++;
         item.retryCount += 1;
         item.lastError = e.toString().replaceAll('Exception: ', '');
+        item.status = SyncStatus.syncFailed;
         // Safety net: a full-snapshot (multipart) item that has failed
         // repeatedly is very likely failing because of upload SIZE (photos
         // + signature + documents), not because the server is genuinely
@@ -412,7 +460,7 @@ class OfflineSyncService {
             '${item.retryCount} failed multipart attempts',
           );
         }
-        stillPending.add(item);
+        finalQueue.add(item);
         _log('Failed to sync "${item.displayName}": ${item.lastError}');
         // Keep admin visibility up to date with the latest retry count/
         // error, so it's clear this item has actually been attempted (and
@@ -421,14 +469,19 @@ class OfflineSyncService {
       }
     }
 
-    await _saveItems(prefs, key, stillPending);
+    await _saveItems(prefs, key, finalQueue);
 
     return OfflineSyncResult(
       synced: synced,
       failed: failed,
-      remaining: stillPending.length,
+      remaining: finalQueue.length,
     );
   }
+
+  /// Convenience wrapper to retry exactly one failed item (task spec
+  /// section 14: a "[ RETRY ]" button on a Sync Failed record that retries
+  /// ONLY that farm - other farms must not need re-uploading).
+  Future<OfflineSyncResult> retryItem(String id) => syncSelectedItems([id]);
 
   /// Rebuilds a [FarmerRegistrationModel] from [item.registration] and
   /// resubmits it through the same multipart [ApiService.registerFarmer]
@@ -450,6 +503,7 @@ class OfflineSyncService {
     final response = await _apiService.registerFarmer(
       farmerData: data,
       authToken: token,
+      clientRecordId: item.id,
     );
 
     if (data.boundaryEvidence != null && data.boundaryEvidence!.isNotEmpty) {

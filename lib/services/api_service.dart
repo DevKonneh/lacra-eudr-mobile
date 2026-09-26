@@ -114,6 +114,14 @@ class ApiService {
   Future<Map<String, dynamic>> registerFarmer({
     required FarmerRegistrationModel farmerData,
     required String? authToken,
+    // Stable local record id (PendingSyncItem.id) used ONLY when this
+    // submission is being replayed from the offline-sync queue - lets the
+    // backend detect/reject an accidental duplicate create if the SAME
+    // queued record is ever submitted twice (e.g. a retry after a
+    // response was lost mid-flight even though the first attempt actually
+    // succeeded server-side). Omitted entirely for a normal live/online
+    // submission, since there is no queue item to dedup against.
+    String? clientRecordId,
   }) async {
     try {
       final request = http.MultipartRequest(
@@ -133,6 +141,9 @@ class ApiService {
           request.fields[key] = value.toString();
         }
       });
+      if (clientRecordId != null) {
+        request.fields['clientRecordId'] = clientRecordId;
+      }
 
       // Add files
       final List<String> fileNames = [];
@@ -652,6 +663,7 @@ class ApiService {
     required Map<String, dynamic> farmer,
     required List<Map<String, dynamic>> farms,
     required String? authToken,
+    String? clientRecordId,
   }) async {
     try {
       final url = '$baseUrl/farmers/offline-sync';
@@ -669,7 +681,11 @@ class ApiService {
           .post(
             Uri.parse(url),
             headers: headers,
-            body: jsonEncode({'farmer': farmer, 'farms': farms}),
+            body: jsonEncode({
+              'farmer': farmer,
+              'farms': farms,
+              if (clientRecordId != null) 'clientRecordId': clientRecordId,
+            }),
           )
           .timeout(_requestTimeout);
 
