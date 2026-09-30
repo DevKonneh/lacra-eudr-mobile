@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'dart:convert';
 import '../models/farmer_registration_model.dart';
+import '../models/farmer_record_model.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../routes/app_routes.dart';
@@ -11,6 +12,7 @@ import '../widgets/farmer_farm_details_step.dart';
 import '../widgets/farm_map_widget.dart';
 import '../widgets/farmer_attachments_step.dart';
 import '../widgets/farmer_review_step.dart';
+import '../widgets/geoid_farm_qr_widget.dart';
 import '../services/offline_sync_service.dart';
 
 void _log(String message) {
@@ -282,16 +284,7 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
         }
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Farmer registered successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          // Navigate back to dashboard/home screen
-          Navigator.of(
-            context,
-          ).pushNamedAndRemoveUntil(AppRoutes.dashboard, (route) => false);
+          await _showRegistrationSuccessSheet(response);
         }
       } catch (e) {
         // Distinguish network failures (server unreachable / timed out)
@@ -324,6 +317,78 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
         });
       }
     }
+  }
+
+  /// Show the post-registration success bottom sheet with GeoID + farm QR.
+  ///
+  /// Extracts farm data from the API response:
+  ///   response['data']['farms'][0]  — preferred path
+  ///   response['data']              — fallback (older backend format)
+  ///
+  /// GeoID fields are best-effort — backend mints async, may be null.
+  /// After the inspector taps "Done" (or dismisses), we navigate to dashboard.
+  Future<void> _showRegistrationSuccessSheet(
+    Map<String, dynamic> response,
+  ) async {
+    // ── Extract farmer name ──────────────────────────────────────────────────
+    final farmerName =
+        _formData['fullName']?.toString().trim() ?? 'New Farmer';
+
+    // ── Extract farm fields from response ────────────────────────────────────
+    String farmId = '';
+    String? geoId;
+    String? geoIdUri;
+    String? farmQrCode;
+
+    try {
+      final data = response['data'];
+      Map<String, dynamic>? farmJson;
+
+      if (data is Map<String, dynamic>) {
+        // Primary path: data.farms[0]
+        final farms = data['farms'];
+        if (farms is List && farms.isNotEmpty && farms[0] is Map) {
+          farmJson = Map<String, dynamic>.from(farms[0] as Map);
+        } else {
+          // Fallback: the data map itself may be the farm
+          farmJson = data;
+        }
+      }
+
+      if (farmJson != null) {
+        farmId = farmJson['id']?.toString() ??
+            farmJson['farmId']?.toString() ??
+            '';
+        geoId = farmJson['geoId']?.toString();
+        geoIdUri = farmJson['geoIdUri']?.toString();
+        farmQrCode = farmJson['farmQrCode']?.toString();
+      }
+    } catch (e) {
+      _log('Could not extract farm data from response: $e');
+    }
+
+    if (!mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      isDismissible: false,
+      enableDrag: false,
+      builder: (ctx) => _RegistrationSuccessSheet(
+        farmerName: farmerName,
+        farmId: farmId,
+        geoId: geoId,
+        geoIdUri: geoIdUri,
+        farmQrCode: farmQrCode,
+        onDone: () {
+          Navigator.of(ctx).pop();
+          Navigator.of(
+            context,
+          ).pushNamedAndRemoveUntil(AppRoutes.dashboard, (route) => false);
+        },
+      ),
+    );
   }
 
   bool _isNetworkError(Object e) {
@@ -936,6 +1001,248 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Post-registration success bottom sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Shown after a successful farmer registration.
+///
+/// Displays:
+///   • A green success header with the farmer name
+///   • The [GeoIdFarmQrWidget] (GeoID card + farm QR)
+///   • A "Done" button that dismisses the sheet and navigates to dashboard
+///
+/// All GeoID fields are best-effort — gracefully shows a "pending" state
+/// if the backend hasn't minted the GeoID yet.
+class _RegistrationSuccessSheet extends StatelessWidget {
+  const _RegistrationSuccessSheet({
+    required this.farmerName,
+    required this.farmId,
+    required this.geoId,
+    required this.geoIdUri,
+    required this.farmQrCode,
+    required this.onDone,
+  });
+
+  final String farmerName;
+  final String farmId;
+  final String? geoId;
+  final String? geoIdUri;
+  final String? farmQrCode;
+  final VoidCallback onDone;
+
+  @override
+  Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    return Container(
+      constraints: BoxConstraints(maxHeight: screenHeight * 0.92),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // ── Drag handle ───────────────────────────────────────────────────
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 10),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+
+          // ── Success header ────────────────────────────────────────────────
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF2E7D32),
+                  const Color(0xFF4CAF50).withOpacity(0.85),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_circle_outline,
+                    color: Colors.white,
+                    size: 36,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Registration Successful',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  farmerName,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Text(
+                    geoId != null
+                        ? 'FAO GeoID minted — farm is EUDR-ready'
+                        : 'GeoID pending — will mint automatically',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ── GeoID + QR section (scrollable) ───────────────────────────────
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: farmId.isNotEmpty
+                  ? GeoIdFarmQrWidget(
+                      farmId: farmId,
+                      geoId: geoId,
+                      geoIdUri: geoIdUri,
+                      farmQrCode: farmQrCode,
+                    )
+                  : _buildNoFarmIdFallback(),
+            ),
+          ),
+
+          // ── EUDR note ─────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, size: 14, color: Colors.grey),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Share the farm QR with buyers and auditors. '
+                    'The public view shows only geo data — no personal info.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade600,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // ── Done button ───────────────────────────────────────────────────
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              0,
+              20,
+              MediaQuery.of(context).padding.bottom + 16,
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: onDone,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4CAF50),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                child: const Text('Done — Go to Dashboard'),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Fallback when the backend didn't return a farm ID in the response.
+  Widget _buildNoFarmIdFallback() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green.shade100),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.check_circle, color: Color(0xFF4CAF50), size: 48),
+          const SizedBox(height: 12),
+          const Text(
+            'Farmer Registered Successfully',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF2E7D32),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'The GeoID and farm QR code will be available in the '
+            'farmer detail view once the backend has processed the submission.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey.shade700,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

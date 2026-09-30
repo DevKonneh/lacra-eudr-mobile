@@ -67,6 +67,12 @@ dependencies:
   # Network connectivity detection (used to trigger offline sync retries)
   connectivity_plus: ^6.1.5
 
+  # QR code generation (for displaying farm QR codes and GeoID)
+  qr_flutter: ^4.1.0
+
+  # URL launcher (open FAO GeoID resolver in browser)
+  url_launcher: ^6.2.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

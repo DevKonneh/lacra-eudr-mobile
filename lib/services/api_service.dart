@@ -423,6 +423,33 @@ class ApiService {
     }
   }
 
+  /// Calls GET /public/farm-scan/:farmId — no auth required.
+  /// Returns geo-only data (GeoID, centroid, GeoJSON, crop type, risk level).
+  /// No PII is returned in the default response — safe to pass to WHIMO.
+  Future<Map<String, dynamic>> getFarmScan({required String farmId}) async {
+    try {
+      final url = '$baseUrl/public/farm-scan/$farmId';
+      _log('API REQUEST - Farm Scan: GET $url');
+
+      final response = await http.get(Uri.parse(url));
+
+      _log('API RESPONSE - Farm Scan: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final jsonData = jsonDecode(response.body) as Map<String, dynamic>;
+        return (jsonData['data'] as Map<String, dynamic>?) ?? jsonData;
+      } else {
+        final errorData = jsonDecode(response.body);
+        throw Exception(
+          errorData['message'] ?? 'Failed to load farm scan data',
+        );
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Network error: ${e.toString()}');
+    }
+  }
+
   /// Calls POST /farmer/offline-sync with {farmer, farms}. Used by
   /// OfflineSyncService to flush queued farmer registrations that were
   /// captured while offline (or that failed the live multipart submission
