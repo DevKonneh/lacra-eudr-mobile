@@ -291,10 +291,29 @@ class ApiService {
   /// [points] - list of {sequence, lat, lng, accuracy, timestamp, photoPath}
   /// as produced by FarmMapWidget's Point + Photo mode. photoPath is a
   /// local file path; it is uploaded as field `boundaryPhoto_<sequence>`.
+  ///
+  /// [location] - optional GeoJSON Polygon/Feature geometry (as produced by
+  /// FarmMapWidget's `onBoundaryDrawn`/pop result) to REPLACE the farm's
+  /// stored boundary in the same request. Used by EditBoundaryScreen when
+  /// re-walking an EXISTING farm's perimeter - the backend
+  /// (FarmController.addBoundaryEvidence) re-runs GPS polygon/area geometry
+  /// validation and re-mints the farm's GeoID whenever `location` is
+  /// present, and returns the updated farm (with fresh geometryStatus,
+  /// calculatedAreaHa, etc.) in the response - see EditBoundaryScreen for
+  /// how that result is parsed and surfaced to the user. When omitted
+  /// (e.g. the brand-new-farmer registration flow), only the per-point
+  /// evidence is attached and the farm's existing `location` is untouched.
+  ///
+  /// [totalAreaHa] - optional declared area (hectares) to update alongside
+  /// a new [location], so the backend's area-mismatch check compares the
+  /// freshly re-walked polygon against an up-to-date declared figure
+  /// rather than a stale one from the farm's original registration.
   Future<Map<String, dynamic>> addBoundaryEvidence({
     required String farmId,
     required List<Map<String, dynamic>> points,
     required String? authToken,
+    Map<String, dynamic>? location,
+    double? totalAreaHa,
   }) async {
     try {
       final request = http.MultipartRequest(
@@ -319,6 +338,14 @@ class ApiService {
           )
           .toList();
       request.fields['points'] = jsonEncode(pointsMeta);
+
+      if (location != null) {
+        final geometry = location['geometry'] ?? location;
+        request.fields['location'] = jsonEncode(geometry);
+      }
+      if (totalAreaHa != null) {
+        request.fields['totalAreaHa'] = totalAreaHa.toString();
+      }
 
       int filesAdded = 0;
       for (final p in points) {
@@ -673,7 +700,10 @@ class ApiService {
     List<String>? farmPhotoPaths,
   }) async {
     try {
-      final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/farms'));
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/farms'),
+      );
       if (authToken != null) {
         request.headers['Authorization'] = 'Bearer $authToken';
       }
@@ -691,8 +721,8 @@ class ApiService {
       }
       if (farmDetails['regStatus'] != null &&
           farmDetails['regStatus'].toString().isNotEmpty) {
-        request.fields['farmRegistrationStatus'] =
-            farmDetails['regStatus'].toString();
+        request.fields['farmRegistrationStatus'] = farmDetails['regStatus']
+            .toString();
       }
       if (farmDetails['farmNotes'] != null) {
         request.fields['farmNotes'] = farmDetails['farmNotes'].toString();
@@ -702,16 +732,15 @@ class ApiService {
             .toString();
       }
       if (farmDetails['yearsInCultivation'] != null) {
-        request.fields['yearsInCultivation'] =
-            farmDetails['yearsInCultivation'].toString();
+        request.fields['yearsInCultivation'] = farmDetails['yearsInCultivation']
+            .toString();
       }
       if (farmDetails['harvestSeason'] != null) {
         request.fields['harvestSeason'] = farmDetails['harvestSeason']
             .toString();
       }
       if (farmDetails['averageYield'] != null) {
-        request.fields['averageYield'] = farmDetails['averageYield']
-            .toString();
+        request.fields['averageYield'] = farmDetails['averageYield'].toString();
       }
       if (farmDetails['buyers'] != null) {
         request.fields['buyers'] = farmDetails['buyers'].toString();
@@ -719,8 +748,8 @@ class ApiService {
       if (farmDetails['farmAddress'] != null) {
         request.fields['farmAddress'] = farmDetails['farmAddress'].toString();
       }
-      request.fields['useChemicals'] =
-          (farmDetails['useChemicals'] == true).toString();
+      request.fields['useChemicals'] = (farmDetails['useChemicals'] == true)
+          .toString();
       request.fields['extensionServices'] =
           (farmDetails['extensionServices'] == true).toString();
       if (farmDetails['areaHa'] != null &&
@@ -733,8 +762,7 @@ class ApiService {
             (farmDetails['farmUnitManual'] ?? 'hectares').toString();
       }
       if (farmDetails['gpsAccuracyM'] != null) {
-        request.fields['gpsAccuracyM'] = farmDetails['gpsAccuracyM']
-            .toString();
+        request.fields['gpsAccuracyM'] = farmDetails['gpsAccuracyM'].toString();
       }
 
       final boundaryJson = farmDetails['boundaryJson'];
@@ -763,7 +791,9 @@ class ApiService {
         }
       }
 
-      _log('API REQUEST - Create Farm For Farmer: POST ${request.url} (farmerId: $farmerId)');
+      _log(
+        'API REQUEST - Create Farm For Farmer: POST ${request.url} (farmerId: $farmerId)',
+      );
 
       final streamedResponse = await request.send().timeout(_uploadTimeout);
       final response = await http.Response.fromStream(streamedResponse);
@@ -781,6 +811,103 @@ class ApiService {
               ? errors.join(', ')
               : (message ?? 'Failed to create farm'),
         );
+      }
+    } on TimeoutException {
+      throw Exception(_networkUnreachableMessage);
+    } on SocketException {
+      throw Exception(_networkUnreachableMessage);
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception(_networkUnreachableMessage);
+    }
+  }
+
+  /// Calls POST /farms/:id/geometry/revalidate. Note that
+  /// [addBoundaryEvidence] above only updates the farm's boundary/location -
+  /// it does NOT itself re-run GPS polygon/area validation (see backend
+  /// FarmController.addBoundaryEvidence vs revalidateGeometry). This call is
+  /// the follow-up step that actually (re)computes geometryStatus,
+  /// calculatedAreaHa, overlap checks, etc. for the NEW boundary and returns
+  /// the full GeometryValidationResult so the Edit Boundary screen can show
+  /// the enumerator an immediate pass/fail/needs-review verdict rather than
+  /// silently saving an unvalidated shape.
+  ///
+  /// Returns the raw `geometryValidation` map from the response, with keys
+  /// matching backend GeometryValidationResult (status, errors, warnings,
+  /// calculatedAreaHa, areaDifferencePercent, overlapsExistingFarm, etc.).
+  Future<Map<String, dynamic>> revalidateFarmGeometry({
+    required String farmId,
+    required String? authToken,
+  }) async {
+    try {
+      final url = '$baseUrl/farms/$farmId/geometry/revalidate';
+      final headers = {'Content-Type': 'application/json'};
+      if (authToken != null) {
+        headers['Authorization'] = 'Bearer $authToken';
+      }
+
+      _log('API REQUEST - Revalidate Farm Geometry: POST $url');
+
+      final response = await http
+          .post(Uri.parse(url), headers: headers)
+          .timeout(_requestTimeout);
+
+      _log('API RESPONSE - Revalidate Farm Geometry: ${response.statusCode}');
+
+      final jsonData = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200) {
+        final data = jsonData['data'];
+        if (data is Map && data['geometryValidation'] is Map) {
+          return Map<String, dynamic>.from(data['geometryValidation'] as Map);
+        }
+        return <String, dynamic>{};
+      } else {
+        final message = jsonData['message'] as String?;
+        throw Exception(message ?? 'Failed to re-validate farm boundary');
+      }
+    } on TimeoutException {
+      throw Exception(_networkUnreachableMessage);
+    } on SocketException {
+      throw Exception(_networkUnreachableMessage);
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception(_networkUnreachableMessage);
+    }
+  }
+
+  /// Fetches a single farm by id (GET /farms/:id) as a [FarmRecord] - used
+  /// by the Edit Boundary screen to show the farm's CURRENT boundary/
+  /// geometry status before the enumerator re-walks it, and to refresh the
+  /// cached geometryStatus display right after a successful re-validation.
+  Future<FarmRecord> getFarm({
+    required String farmId,
+    required String? authToken,
+  }) async {
+    try {
+      final url = '$baseUrl/farms/$farmId';
+      final headers = <String, String>{};
+      if (authToken != null) {
+        headers['Authorization'] = 'Bearer $authToken';
+      }
+
+      _log('API REQUEST - Get Farm: GET $url');
+
+      final response = await http
+          .get(Uri.parse(url), headers: headers)
+          .timeout(_requestTimeout);
+
+      _log('API RESPONSE - Get Farm: ${response.statusCode}');
+
+      final jsonData = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200) {
+        return FarmRecord.fromJson(jsonData['data'] as Map<String, dynamic>);
+      } else {
+        final message = jsonData['message'] as String?;
+        throw Exception(message ?? 'Failed to load farm');
       }
     } on TimeoutException {
       throw Exception(_networkUnreachableMessage);

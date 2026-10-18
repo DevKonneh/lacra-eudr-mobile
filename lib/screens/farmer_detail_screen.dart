@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/status_badge.dart';
 import 'add_farm_screen.dart';
+import 'edit_boundary_screen.dart';
 
 /// Full detail view for a single farmer + their farm(s), fetched fresh
 /// from GET /api/farmers/:id. Reached by tapping a row in FarmersListScreen.
@@ -61,13 +62,25 @@ class _FarmerDetailScreenState extends State<FarmerDetailScreen> {
     if (farmer == null) return;
     final added = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (context) => AddFarmScreen(
-          farmerId: farmer.id,
-          farmerName: farmer.fullName,
-        ),
+        builder: (context) =>
+            AddFarmScreen(farmerId: farmer.id, farmerName: farmer.fullName),
       ),
     );
     if (added == true) {
+      _load();
+    }
+  }
+
+  Future<void> _editBoundary(FarmRecord farm) async {
+    final farmer = _farmer;
+    if (farmer == null) return;
+    final updated = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (context) =>
+            EditBoundaryScreen(farm: farm, farmerName: farmer.fullName),
+      ),
+    );
+    if (updated == true) {
       _load();
     }
   }
@@ -296,16 +309,8 @@ class _FarmerDetailScreenState extends State<FarmerDetailScreen> {
             title: 'Personal Information',
             icon: Icons.badge_outlined,
             children: [
-              _infoRow(
-                'Farmer ID',
-                farmer.farmerId,
-                icon: Icons.tag_outlined,
-              ),
-              _infoRow(
-                'Phone',
-                farmer.phoneNumber,
-                icon: Icons.phone_outlined,
-              ),
+              _infoRow('Farmer ID', farmer.farmerId, icon: Icons.tag_outlined),
+              _infoRow('Phone', farmer.phoneNumber, icon: Icons.phone_outlined),
               _infoRow('Email', farmer.email, icon: Icons.email_outlined),
               _infoRow('Gender', farmer.gender, icon: Icons.wc_outlined),
               _infoRow(
@@ -428,21 +433,16 @@ class _FarmerDetailScreenState extends State<FarmerDetailScreen> {
                         color: farm.geometryErrors.isNotEmpty
                             ? AppTheme.dangerBg
                             : AppTheme.warningBg,
-                        borderRadius: BorderRadius.circular(
-                          AppTheme.radiusMd,
-                        ),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           ...farm.geometryErrors.map(
                             (e) => Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 2,
-                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 2),
                               child: Row(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Icon(
                                     Icons.error_outline,
@@ -465,12 +465,9 @@ class _FarmerDetailScreenState extends State<FarmerDetailScreen> {
                           ),
                           ...farm.geometryWarnings.map(
                             (w) => Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 2,
-                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 2),
                               child: Row(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Icon(
                                     Icons.warning_amber_outlined,
@@ -494,6 +491,19 @@ class _FarmerDetailScreenState extends State<FarmerDetailScreen> {
                         ],
                       ),
                     ),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _editBoundary(farm),
+                      icon: const Icon(Icons.edit_location_alt, size: 16),
+                      label: const Text('Edit Boundary'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.primaryGreen,
+                        side: const BorderSide(color: AppTheme.primaryGreen),
+                      ),
+                    ),
+                  ),
                 ],
               );
             }),
