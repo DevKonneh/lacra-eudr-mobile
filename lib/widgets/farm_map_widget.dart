@@ -63,8 +63,33 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
   List<Map<String, dynamic>> _searchResults = [];
   bool _isSearching = false;
   bool _showSearchResults = false;
-  static const String _googleMapsApiKey =
-      'AIzaSyDjBhe0NHRAHbAF7-xK8OaCG1LgVIUoulo';
+  // SECURITY NOTE: This key is also embedded natively in
+  // android/app/src/main/AndroidManifest.xml (com.google.android.geo.API_KEY),
+  // ios/Runner/Info.plist (GMSApiKey), and web/index.html (Maps JS SDK
+  // <script> tag) - the Google Maps SDK requires the literal key string in
+  // those platform files to even initialize, so it is NOT possible to fully
+  // "hide" this value from a compiled APK/IPA/web bundle; any Google Maps
+  // app ships its key visibly to the device by design.
+  //
+  // The real protection is RESTRICTING the key in Google Cloud Console
+  // (APIs & Services > Credentials):
+  //   - Android: restrict to this app's package name + release SHA-1
+  //     fingerprint (and the debug SHA-1 if you need debug builds to work)
+  //   - iOS: restrict to this app's bundle identifier
+  //   - Web: restrict to your deployed domain(s) via HTTP referrer
+  //   - API restriction: limit to only Maps SDK for Android/iOS, Maps
+  //     JavaScript API, and Geocoding API (the only ones this app calls)
+  // Without those restrictions, ANY copy of this key - extracted from the
+  // APK or the web page source - can be used against your project's
+  // billing from anywhere. Restricting it is a Cloud Console change, not
+  // a code change, and does not require a new app release.
+  //
+  // --dart-define=GOOGLE_MAPS_API_KEY=... lets this value be swapped at
+  // build time (e.g. after rotating the key) without touching source.
+  static const String _googleMapsApiKey = String.fromEnvironment(
+    'GOOGLE_MAPS_API_KEY',
+    defaultValue: 'AIzaSyDjBhe0NHRAHbAF7-xK8OaCG1LgVIUoulo',
+  );
 
   // Satellite imagery is the default base layer so the mapper can see real
   // ground cover (trees, cleared land, roads) while capturing boundary

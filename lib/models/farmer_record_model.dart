@@ -8,6 +8,50 @@
 /// to crash the whole list screen for an inspector in the field.
 library;
 
+/// Mirrors the backend's `Farm.geometryStatus` enum
+/// (src/entities/Farm.ts) - the cached outcome of the last GPS
+/// polygon/area validation run (GeometryValidationService), computed
+/// server-side on every farm create/sync and never recalculated on the
+/// mobile client. "Missing" is the enum default for farms that have never
+/// been validated (e.g. very old records created before this feature
+/// existed), so it is treated the same as "unknown" here rather than as a
+/// failure.
+enum FarmGeometryStatus { valid, needsReview, invalid, missing, unknown }
+
+FarmGeometryStatus _parseGeometryStatus(dynamic raw) {
+  switch (raw?.toString()) {
+    case 'Valid':
+      return FarmGeometryStatus.valid;
+    case 'Needs Review':
+      return FarmGeometryStatus.needsReview;
+    case 'Invalid':
+      return FarmGeometryStatus.invalid;
+    case 'Missing':
+      return FarmGeometryStatus.missing;
+    default:
+      return FarmGeometryStatus.unknown;
+  }
+}
+
+extension FarmGeometryStatusLabel on FarmGeometryStatus {
+  /// Matches the exact string the backend enum uses (see
+  /// AppTheme.statusColor/statusBgColor), so this can be passed straight
+  /// into a [StatusBadge].
+  String get label {
+    switch (this) {
+      case FarmGeometryStatus.valid:
+        return 'Valid';
+      case FarmGeometryStatus.needsReview:
+        return 'Needs Review';
+      case FarmGeometryStatus.invalid:
+        return 'Invalid';
+      case FarmGeometryStatus.missing:
+      case FarmGeometryStatus.unknown:
+        return 'Not Yet Validated';
+    }
+  }
+}
+
 class FarmRecord {
   final String id;
   final String name;
@@ -19,6 +63,22 @@ class FarmRecord {
   final String? farmNotes;
   final List<String> farmPhotos;
   final DateTime? createdAt;
+  final Map<String, dynamic>? location;
+
+  // --- GPS polygon / farm-area geometry validation (see
+  // backend FarmGeometryHelper.validateAndAnnotateFarm) - computed on the
+  // server, cached on the Farm row, and surfaced here READ-ONLY so an
+  // enumerator can see at a glance whether a boundary they drew needs a
+  // second look, without having to go find the admin panel.
+  final FarmGeometryStatus geometryStatus;
+  final double? calculatedAreaHa;
+  final double? areaDifferenceHa;
+  final double? areaDifferencePercent;
+  final double? gpsAccuracyM;
+  final int coordinateCount;
+  final bool overlapsExistingFarm;
+  final List<String> geometryWarnings;
+  final List<String> geometryErrors;
 
   FarmRecord({
     required this.id,
@@ -31,9 +91,40 @@ class FarmRecord {
     this.farmNotes,
     this.farmPhotos = const [],
     this.createdAt,
+    this.location,
+    this.geometryStatus = FarmGeometryStatus.unknown,
+    this.calculatedAreaHa,
+    this.areaDifferenceHa,
+    this.areaDifferencePercent,
+    this.gpsAccuracyM,
+    this.coordinateCount = 0,
+    this.overlapsExistingFarm = false,
+    this.geometryWarnings = const [],
+    this.geometryErrors = const [],
   });
 
+  /// True when this farm's boundary is worth flagging to the enumerator:
+  /// either the server marked it Needs Review/Invalid, or it overlaps
+  /// another farm's polygon. "Missing"/"unknown" are NOT flagged here -
+  /// those just mean "never validated", not "something is wrong".
+  bool get needsAttention =>
+      geometryStatus == FarmGeometryStatus.needsReview ||
+      geometryStatus == FarmGeometryStatus.invalid ||
+      overlapsExistingFarm;
+
   factory FarmRecord.fromJson(Map<String, dynamic> json) {
+    final details = json['geometryValidationDetails'];
+    final warnings = details is Map && details['warnings'] is List
+        ? List<String>.from(
+            (details['warnings'] as List).map((e) => e.toString()),
+          )
+        : const <String>[];
+    final errors = details is Map && details['errors'] is List
+        ? List<String>.from(
+            (details['errors'] as List).map((e) => e.toString()),
+          )
+        : const <String>[];
+
     return FarmRecord(
       id: (json['id'] ?? '').toString(),
       name: (json['name'] ?? 'Unnamed Farm').toString(),
@@ -51,6 +142,30 @@ class FarmRecord {
             )
           : const [],
       createdAt: DateTime.tryParse('${json['createdAt']}'),
+      location: json['location'] is Map
+          ? Map<String, dynamic>.from(json['location'] as Map)
+          : null,
+      geometryStatus: _parseGeometryStatus(json['geometryStatus']),
+      calculatedAreaHa: json['calculatedAreaHa'] is num
+          ? (json['calculatedAreaHa'] as num).toDouble()
+          : null,
+      areaDifferenceHa: json['areaDifferenceHa'] is num
+          ? (json['areaDifferenceHa'] as num).toDouble()
+          : null,
+      areaDifferencePercent: json['areaDifferencePercent'] is num
+          ? (json['areaDifferencePercent'] as num).toDouble()
+          : null,
+      gpsAccuracyM: json['gpsAccuracyM'] is num
+          ? (json['gpsAccuracyM'] as num).toDouble()
+          : null,
+      coordinateCount: json['coordinateCount'] is num
+          ? (json['coordinateCount'] as num).toInt()
+          : 0,
+      overlapsExistingFarm: json['overlapsExistingFarm'] is bool
+          ? json['overlapsExistingFarm'] as bool
+          : false,
+      geometryWarnings: warnings,
+      geometryErrors: errors,
     );
   }
 }

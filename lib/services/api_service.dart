@@ -654,6 +654,146 @@ class ApiService {
     }
   }
 
+  /// Calls POST /farms with a `farmerId` to attach a NEW farm to an
+  /// ALREADY-REGISTERED farmer (backend FarmController.create() - see
+  /// comment there on the "Add Farm to Existing Farmer" workflow and its
+  /// audit-log entry). Used by the Farmer Detail screen's "Add Farm"
+  /// button, reusing the same FarmerFarmDetailsStep + FarmMapWidget
+  /// capture flow as brand-new-farmer registration, just scoped to one
+  /// farm instead of a whole farmer record.
+  ///
+  /// [farmDetails] is the raw map produced by
+  /// FarmerFarmDetailsStep.onDataChanged (farmName, crop, ownership, etc.)
+  /// plus 'boundaryJson' (GeoJSON Feature string), 'areaHa'/'areaAc', and
+  /// optionally 'gpsAccuracyM'.
+  Future<Map<String, dynamic>> createFarmForFarmer({
+    required String farmerId,
+    required Map<String, dynamic> farmDetails,
+    required String? authToken,
+    List<String>? farmPhotoPaths,
+  }) async {
+    try {
+      final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/farms'));
+      if (authToken != null) {
+        request.headers['Authorization'] = 'Bearer $authToken';
+      }
+
+      request.fields['farmerId'] = farmerId;
+      final name = (farmDetails['farmName'] ?? '').toString().trim();
+      request.fields['name'] = name.isNotEmpty
+          ? name
+          : '${farmDetails['crop'] ?? 'Farm'} Plot ${DateTime.now().millisecondsSinceEpoch}';
+      if (farmDetails['crop'] != null) {
+        request.fields['cropType'] = farmDetails['crop'].toString();
+      }
+      if (farmDetails['ownership'] != null) {
+        request.fields['ownershipType'] = farmDetails['ownership'].toString();
+      }
+      if (farmDetails['regStatus'] != null &&
+          farmDetails['regStatus'].toString().isNotEmpty) {
+        request.fields['farmRegistrationStatus'] =
+            farmDetails['regStatus'].toString();
+      }
+      if (farmDetails['farmNotes'] != null) {
+        request.fields['farmNotes'] = farmDetails['farmNotes'].toString();
+      }
+      if (farmDetails['numberOfTrees'] != null) {
+        request.fields['numberOfTrees'] = farmDetails['numberOfTrees']
+            .toString();
+      }
+      if (farmDetails['yearsInCultivation'] != null) {
+        request.fields['yearsInCultivation'] =
+            farmDetails['yearsInCultivation'].toString();
+      }
+      if (farmDetails['harvestSeason'] != null) {
+        request.fields['harvestSeason'] = farmDetails['harvestSeason']
+            .toString();
+      }
+      if (farmDetails['averageYield'] != null) {
+        request.fields['averageYield'] = farmDetails['averageYield']
+            .toString();
+      }
+      if (farmDetails['buyers'] != null) {
+        request.fields['buyers'] = farmDetails['buyers'].toString();
+      }
+      if (farmDetails['farmAddress'] != null) {
+        request.fields['farmAddress'] = farmDetails['farmAddress'].toString();
+      }
+      request.fields['useChemicals'] =
+          (farmDetails['useChemicals'] == true).toString();
+      request.fields['extensionServices'] =
+          (farmDetails['extensionServices'] == true).toString();
+      if (farmDetails['areaHa'] != null &&
+          farmDetails['areaHa'].toString().isNotEmpty) {
+        request.fields['totalAreaHa'] = farmDetails['areaHa'].toString();
+      } else if (farmDetails['farmSizeManual'] != null) {
+        request.fields['manualSizeInput'] = farmDetails['farmSizeManual']
+            .toString();
+        request.fields['manualSizeUnit'] =
+            (farmDetails['farmUnitManual'] ?? 'hectares').toString();
+      }
+      if (farmDetails['gpsAccuracyM'] != null) {
+        request.fields['gpsAccuracyM'] = farmDetails['gpsAccuracyM']
+            .toString();
+      }
+
+      final boundaryJson = farmDetails['boundaryJson'];
+      if (boundaryJson != null && boundaryJson.toString().isNotEmpty) {
+        try {
+          final decoded = jsonDecode(boundaryJson.toString());
+          final geometry = decoded is Map && decoded['geometry'] != null
+              ? decoded['geometry']
+              : decoded;
+          request.fields['location'] = jsonEncode(geometry);
+        } catch (_) {
+          // Malformed boundary JSON - let the backend's own "Either a
+          // GeoJSON 'location' polygon or lat/lng is required" check
+          // reject this explicitly rather than silently dropping it here.
+        }
+      }
+
+      if (farmPhotoPaths != null) {
+        for (final path in farmPhotoPaths) {
+          final file = File(path);
+          if (await file.exists()) {
+            request.files.add(
+              await http.MultipartFile.fromPath('farmPhotos', path),
+            );
+          }
+        }
+      }
+
+      _log('API REQUEST - Create Farm For Farmer: POST ${request.url} (farmerId: $farmerId)');
+
+      final streamedResponse = await request.send().timeout(_uploadTimeout);
+      final response = await http.Response.fromStream(streamedResponse);
+
+      _log('API RESPONSE - Create Farm For Farmer: ${response.statusCode}');
+
+      final jsonData = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonData;
+      } else {
+        final errors = jsonData['errors'];
+        final message = jsonData['message'] as String?;
+        throw Exception(
+          (errors is List && errors.isNotEmpty)
+              ? errors.join(', ')
+              : (message ?? 'Failed to create farm'),
+        );
+      }
+    } on TimeoutException {
+      throw Exception(_networkUnreachableMessage);
+    } on SocketException {
+      throw Exception(_networkUnreachableMessage);
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception(_networkUnreachableMessage);
+    }
+  }
+
   /// Calls POST /farmer/offline-sync with {farmer, farms}. Used by
   /// OfflineSyncService to flush queued farmer registrations that were
   /// captured while offline (or that failed the live multipart submission

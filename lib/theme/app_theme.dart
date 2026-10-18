@@ -115,14 +115,17 @@ class AppTheme {
       case 'approved':
       case 'active':
       case 'synced':
+      case 'valid':
         return success;
       case 'conflict':
       case 'rejected':
       case 'failed':
+      case 'invalid':
         return danger;
       case 'pending':
       case 'unverified':
       case 'draft':
+      case 'needs review':
         return warning;
       default:
         return info;
@@ -135,14 +138,17 @@ class AppTheme {
       case 'approved':
       case 'active':
       case 'synced':
+      case 'valid':
         return successBg;
       case 'conflict':
       case 'rejected':
       case 'failed':
+      case 'invalid':
         return dangerBg;
       case 'pending':
       case 'unverified':
       case 'draft':
+      case 'needs review':
         return warningBg;
       default:
         return infoBg;

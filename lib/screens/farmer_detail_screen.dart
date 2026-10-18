@@ -4,6 +4,7 @@ import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/status_badge.dart';
+import 'add_farm_screen.dart';
 
 /// Full detail view for a single farmer + their farm(s), fetched fresh
 /// from GET /api/farmers/:id. Reached by tapping a row in FarmersListScreen.
@@ -52,6 +53,22 @@ class _FarmerDetailScreenState extends State<FarmerDetailScreen> {
         _error = e.toString().replaceFirst('Exception: ', '');
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _addFarm() async {
+    final farmer = _farmer;
+    if (farmer == null) return;
+    final added = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (context) => AddFarmScreen(
+          farmerId: farmer.id,
+          farmerName: farmer.fullName,
+        ),
+      ),
+    );
+    if (added == true) {
+      _load();
     }
   }
 
@@ -164,6 +181,14 @@ class _FarmerDetailScreenState extends State<FarmerDetailScreen> {
         ],
       ),
       body: _buildBody(),
+      floatingActionButton: (!_isLoading && _error == null && _farmer != null)
+          ? FloatingActionButton.extended(
+              onPressed: _addFarm,
+              backgroundColor: AppTheme.primaryGreen,
+              icon: const Icon(Icons.add_location_alt_outlined),
+              label: const Text('Add Farm'),
+            )
+          : null,
     );
   }
 
@@ -338,6 +363,12 @@ class _FarmerDetailScreenState extends State<FarmerDetailScreen> {
                       'No farm details recorded',
                       style: TextStyle(color: AppTheme.textSecondary),
                     ),
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: _addFarm,
+                      icon: const Icon(Icons.add_location_alt_outlined),
+                      label: const Text('Add Farm'),
+                    ),
                   ],
                 ),
               ),
@@ -350,15 +381,119 @@ class _FarmerDetailScreenState extends State<FarmerDetailScreen> {
                 title: 'Farm ${i + 1}: ${farm.name}',
                 icon: Icons.grass_outlined,
                 children: [
+                  Row(
+                    children: [
+                      StatusBadge(label: farm.geometryStatus.label),
+                      if (farm.overlapsExistingFarm) ...[
+                        const SizedBox(width: 8),
+                        const StatusBadge(label: 'Overlap Detected'),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 4),
                   _infoRow('Crop Type', farm.cropType),
                   _infoRow('Risk Level', farm.riskLevel),
                   _infoRow(
                     'Area',
                     farm.totalAreaHa != null ? '${farm.totalAreaHa} ha' : null,
                   ),
+                  _infoRow(
+                    'Calculated Area',
+                    farm.calculatedAreaHa != null
+                        ? '${farm.calculatedAreaHa!.toStringAsFixed(2)} ha'
+                        : null,
+                  ),
+                  _infoRow(
+                    'Area Difference',
+                    farm.areaDifferencePercent != null
+                        ? '${farm.areaDifferencePercent!.toStringAsFixed(1)}%'
+                        : null,
+                  ),
+                  _infoRow(
+                    'GPS Accuracy',
+                    farm.gpsAccuracyM != null
+                        ? '${farm.gpsAccuracyM!.toStringAsFixed(1)} m'
+                        : null,
+                  ),
                   _infoRow('Ownership', farm.ownershipType),
                   _infoRow('Registration', farm.farmRegistrationStatus),
                   _infoRow('Notes', farm.farmNotes),
+                  if (farm.needsAttention &&
+                      (farm.geometryWarnings.isNotEmpty ||
+                          farm.geometryErrors.isNotEmpty))
+                    Container(
+                      margin: const EdgeInsets.only(top: 10),
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: farm.geometryErrors.isNotEmpty
+                            ? AppTheme.dangerBg
+                            : AppTheme.warningBg,
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMd,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ...farm.geometryErrors.map(
+                            (e) => Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 2,
+                              ),
+                              child: Row(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(
+                                    Icons.error_outline,
+                                    size: 14,
+                                    color: AppTheme.danger,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      e,
+                                      style: const TextStyle(
+                                        fontSize: 12.5,
+                                        color: AppTheme.danger,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          ...farm.geometryWarnings.map(
+                            (w) => Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 2,
+                              ),
+                              child: Row(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(
+                                    Icons.warning_amber_outlined,
+                                    size: 14,
+                                    color: AppTheme.warning,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      w,
+                                      style: const TextStyle(
+                                        fontSize: 12.5,
+                                        color: AppTheme.warning,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               );
             }),
