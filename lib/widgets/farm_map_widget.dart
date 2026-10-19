@@ -7,7 +7,9 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../services/gps_service.dart';
+import '../services/map_camera_memory_service.dart';
 
 void _log(String message) {
   if (kDebugMode) {
@@ -26,6 +28,35 @@ void _log(String message) {
 ///   gallery) that the resulting land polygon is built from.
 enum MappingMode { manual, autoWalk, pointPhoto }
 
+/// NOTE on offline map tiles (gap-analysis item #2 - "improve offline
+/// performance"): this widget deliberately does NOT implement offline
+/// basemap tile pre-download/caching. Two hard constraints rule it out
+/// for Google Maps specifically:
+///   1. google_maps_flutter has never exposed the native SDKs' offline-
+///      regions API - there is no supported way to pre-download tiles
+///      through this plugin.
+///   2. Google's Maps Platform Terms of Service prohibit caching/storing
+///      map tiles outside their own official offline feature - building a
+///      custom tile cache on top would violate that.
+/// Replacing Google Maps with an open-tile engine (e.g. flutter_map +
+/// flutter_map_tile_caching) WOULD allow real offline tiles, but is a
+/// large, separate initiative (new map engine, rewrite of this widget and
+/// BoundaryPreviewMap, re-test of all three mapping modes) that needs its
+/// own explicit scoping/approval rather than being bundled in here.
+///
+/// What IS implemented instead (the safe, immediately useful half of this
+/// gap) is GRACEFUL OFFLINE DEGRADATION:
+///   - GPS point capture, polygon math, and EUDR point+photo evidence
+///     capture all run entirely on-device (via GpsService/geolocator and
+///     the device camera) and work fully even with zero connectivity -
+///     only the visual satellite/street BASEMAP imagery requires a
+///     network connection to load.
+///   - An offline banner (see _buildOfflineBanner below) makes this
+///     explicit to the user instead of leaving them guessing whether a
+///     blank/gray map means the app is broken.
+///   - MapCameraMemoryService remembers the last camera position/zoom so
+///     re-opening the map while offline (when tiles may be slow or fail
+///     to load) still centers on familiar ground immediately.
 class FarmMapWidget extends StatefulWidget {
   final double? initialLat;
   final double? initialLng;
@@ -101,9 +132,7 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
 
   void _toggleMapType() {
     setState(() {
-      _mapType = _mapType == MapType.hybrid
-          ? MapType.normal
-          : MapType.hybrid;
+      _mapType = _mapType == MapType.hybrid ? MapType.normal : MapType.hybrid;
     });
   }
 
@@ -127,10 +156,34 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
   bool _isCapturingPoint = false; // true while GPS fix + camera flow runs
   static const int _minPointPhotoPoints = 4;
 
+  // ===== Offline basemap handling (gap #2 - see class doc comment) =====
+  final MapCameraMemoryService _cameraMemory = MapCameraMemoryService();
+  final Connectivity _connectivity = Connectivity();
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  bool _isOffline = false;
+  // Debounces camera-position saves so every tiny pan/zoom tick doesn't
+  // hit shared_preferences - only the final resting position after the
+  // user stops moving the map is persisted.
+  Timer? _cameraSaveDebounce;
+
   @override
   void initState() {
     super.initState();
     _updatePolygon();
+    _initConnectivityMonitoring();
+  }
+
+  Future<void> _initConnectivityMonitoring() async {
+    final initial = await _connectivity.checkConnectivity();
+    if (mounted) {
+      setState(() => _isOffline = initial.contains(ConnectivityResult.none));
+    }
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((
+      results,
+    ) {
+      if (!mounted) return;
+      setState(() => _isOffline = results.contains(ConnectivityResult.none));
+    });
   }
 
   @override
@@ -139,23 +192,61 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
     _gpsMonitorTimer?.cancel();
     _autoPointCaptureTimer?.cancel();
     _positionStream?.cancel();
+    _connectivitySubscription?.cancel();
+    _cameraSaveDebounce?.cancel();
     super.dispose();
   }
 
-  void _onMapCreated(GoogleMapController controller) {
+  /// Called on every camera movement. Debounced so only the FINAL resting
+  /// position (after the user stops panning/zooming) is written to
+  /// storage - see MapCameraMemoryService doc comment for why this is
+  /// remembered at all (fast re-centering when tiles are slow/unavailable
+  /// offline on the NEXT time the map is opened).
+  void _onCameraMove(CameraPosition position) {
+    _cameraSaveDebounce?.cancel();
+    _cameraSaveDebounce = Timer(const Duration(milliseconds: 800), () {
+      _cameraMemory.saveLastPosition(
+        lat: position.target.latitude,
+        lng: position.target.longitude,
+        zoom: position.zoom,
+      );
+    });
+  }
+
+  void _onMapCreated(GoogleMapController controller) async {
     _mapController = controller;
     _log('🗺️ Google Map created successfully');
 
-    // Move camera to initial position
+    // Move camera to initial position. Priority order:
+    //   1. An explicit farm location passed in (editing/adding a specific
+    //      farm) - always wins, since it's the most relevant place to be.
+    //   2. The last remembered camera position (MapCameraMemoryService) -
+    //      useful when opening the map fresh with no specific farm in
+    //      mind, especially offline/slow-tile scenarios where re-deriving
+    //      "where was I" via a wide Liberia view + manual pan/zoom is slow
+    //      and frustrating.
+    //   3. A wide default view of Liberia (first-ever open on this
+    //      device/install, nothing remembered yet).
+    if (widget.initialLat != null && widget.initialLng != null) {
+      final target = LatLng(widget.initialLat!, widget.initialLng!);
+      Future.delayed(const Duration(milliseconds: 500), () {
+        _mapController?.animateCamera(CameraUpdate.newLatLngZoom(target, 16.0));
+        _log('📍 Camera moved to: ${widget.initialLat}, ${widget.initialLng}');
+      });
+      return;
+    }
+
+    final remembered = await _cameraMemory.getLastPosition();
+    if (!mounted) return;
     Future.delayed(const Duration(milliseconds: 500), () {
-      if (widget.initialLat != null && widget.initialLng != null) {
+      if (remembered != null) {
         _mapController?.animateCamera(
           CameraUpdate.newLatLngZoom(
-            LatLng(widget.initialLat!, widget.initialLng!),
-            16.0,
+            LatLng(remembered['lat']!, remembered['lng']!),
+            remembered['zoom']!,
           ),
         );
-        _log('📍 Camera moved to: ${widget.initialLat}, ${widget.initialLng}');
+        _log('📍 Camera restored to last remembered position: $remembered');
       } else {
         _mapController?.animateCamera(
           CameraUpdate.newLatLngZoom(
@@ -1034,6 +1125,7 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
                     : 8.0,
               ),
               onTap: _onMapTap,
+              onCameraMove: _onCameraMove,
               polygons: _polygons,
               markers: _markers,
               mapType: _mapType,
@@ -1044,6 +1136,52 @@ class _FarmMapWidgetState extends State<FarmMapWidget> {
               mapToolbarEnabled: false,
             ),
           ),
+
+          // Offline basemap banner (gap #2 - see class doc comment).
+          // Deliberately does NOT block any capture controls below it -
+          // GPS point capture, polygon drawing and photo evidence all
+          // keep working with zero connectivity; only the satellite/
+          // street tile imagery itself needs a network connection, which
+          // this banner makes explicit instead of leaving a blank/gray
+          // map looking like a bug.
+          if (_isOffline)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                bottom: false,
+                child: Container(
+                  margin: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.75),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.cloud_off, color: Colors.amber, size: 18),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'No internet - satellite/street imagery may not '
+                          'load, but GPS point capture and photos still '
+                          'work normally.',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
 
           // Satellite/Street map type toggle - stacked above the "my
           // location" button on the right edge so it never collides with
