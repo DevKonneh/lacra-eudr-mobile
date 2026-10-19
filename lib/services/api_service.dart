@@ -7,6 +7,7 @@ import '../models/login_response_model.dart';
 import '../models/farmer_registration_model.dart';
 import '../models/farmer_record_model.dart';
 import '../models/offline_submission_record.dart';
+import '../data/cda_cooperatives.dart';
 
 class ApiService {
   // Some networks (certain mobile carriers, restrictive Wi-Fi/firewalls)
@@ -622,6 +623,52 @@ class ApiService {
           (errors is List && errors.isNotEmpty)
               ? errors.join(', ')
               : (message ?? 'Failed to load farmers'),
+        );
+      }
+    } on TimeoutException {
+      throw Exception(_networkUnreachableMessage);
+    } on SocketException {
+      throw Exception(_networkUnreachableMessage);
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception(_networkUnreachableMessage);
+    }
+  }
+
+  /// Calls GET /cooperatives to fetch the real CDA (Cooperative Development
+  /// Agency) registry - replaces the old hardcoded placeholder list in
+  /// cda_cooperatives.dart. Deliberately does NOT send an Authorization
+  /// header: the backend route is public/no-auth by design (this is
+  /// non-sensitive reference data, also needed by the admin panel's
+  /// unauthenticated public farmer-registration page), and omitting the
+  /// token here means a stale/expired token never blocks loading it.
+  Future<List<CdaCooperative>> getCooperatives() async {
+    try {
+      final url = '$baseUrl/cooperatives';
+
+      _log('API REQUEST - Get Cooperatives: GET $url');
+
+      final response = await http.get(Uri.parse(url)).timeout(_requestTimeout);
+
+      _log('API RESPONSE - Get Cooperatives: ${response.statusCode}');
+
+      final jsonData = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200) {
+        final list = jsonData['data'];
+        if (list is! List) return [];
+        return list
+            .whereType<Map<String, dynamic>>()
+            .map(CdaCooperative.fromJson)
+            .toList();
+      } else {
+        final errors = jsonData['errors'];
+        final message = jsonData['message'] as String?;
+        throw Exception(
+          (errors is List && errors.isNotEmpty)
+              ? errors.join(', ')
+              : (message ?? 'Failed to load cooperatives'),
         );
       }
     } on TimeoutException {

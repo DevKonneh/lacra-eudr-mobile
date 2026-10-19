@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../data/cda_cooperatives.dart';
+import '../services/cooperative_registry_service.dart';
 import '../theme/app_theme.dart';
 import 'media_capture_field.dart';
 
@@ -54,6 +55,13 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
   // _cooperativeSource == OTHER) whatever the enumerator typed manually.
   String? _cooperativeName;
   String _cooperativeSource = ''; // 'CDA_REGISTRY' | 'OTHER' | ''
+  // True while the real CDA registry is being fetched from the backend (or
+  // loaded from its offline cache) for the first time this screen is shown.
+  // The picker still opens immediately with whatever's already in
+  // CdaCooperatives.entries (offline seed/previous cache) - this flag just
+  // drives a small inline spinner in the bottom sheet while a fresher list
+  // loads in the background.
+  bool _loadingCooperatives = false;
 
   // Complete list of countries
   static const List<String> _allCountries = [
@@ -251,6 +259,7 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
   @override
   void initState() {
     super.initState();
+    _loadCooperativeRegistry();
     if (widget.initialData != null) {
       _fullNameController.text = widget.initialData!['fullName'] ?? '';
       _genderController.text = widget.initialData!['gender'] ?? '';
@@ -296,6 +305,23 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
       _idDocumentPath = widget.initialData!['nationalIdPath'];
     }
     _updateData();
+  }
+
+  /// Kicks off (but doesn't block on) fetching the real CDA registry so
+  /// it's ready - or at least refreshing - by the time the enumerator taps
+  /// the Cooperative field. Errors are swallowed here: CooperativeRegistryService
+  /// already falls back to cache/offline-seed internally, so there's
+  /// nothing actionable to show the user from this background call.
+  Future<void> _loadCooperativeRegistry() async {
+    if (!mounted) return;
+    setState(() => _loadingCooperatives = true);
+    try {
+      await CooperativeRegistryService.load();
+    } catch (_) {
+      // Already logged inside the service; nothing more to do here.
+    } finally {
+      if (mounted) setState(() => _loadingCooperatives = false);
+    }
   }
 
   String? _normalizeIdType(String? raw) {
@@ -526,14 +552,20 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
   }
 
   /// Searchable "Cooperative / Group Affiliation" picker, backed by the
-  /// CDA registry placeholder dataset (see cda_cooperatives.dart) - mirrors
-  /// the nationality bottom-sheet's search-as-you-type pattern above.
-  /// Always includes an "Other / Not Listed" entry at the top of results
-  /// so the enumerator is never blocked from registering a farmer whose
-  /// cooperative simply isn't in the (currently placeholder) dataset yet.
+  /// real CDA registry (see cda_cooperatives.dart and
+  /// CooperativeRegistryService) - mirrors the nationality bottom-sheet's
+  /// search-as-you-type pattern above. Always includes an "Other / Not
+  /// Listed" entry at the top of results so the enumerator is never
+  /// blocked from registering a farmer whose cooperative isn't (yet) in
+  /// the registry.
   void _showCooperativeBottomSheet() {
     final TextEditingController searchController = TextEditingController();
     List<CdaCooperative> filtered = List.from(CdaCooperatives.entries);
+    // Re-check for a fresher registry every time the picker opens (cheap
+    // no-op if already loaded this session) rather than relying solely on
+    // the one-shot initState() load, in case that earlier attempt failed
+    // (e.g. opened the form while offline, then regained connectivity).
+    bool modalLoading = _loadingCooperatives;
 
     showModalBottomSheet(
       context: context,
@@ -550,6 +582,18 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
               });
             }
 
+            // Kick off (once per sheet-open) a refresh and update the
+            // visible list/spinner when it resolves.
+            CooperativeRegistryService.load().then((updated) {
+              if (!context.mounted) return;
+              setModalState(() {
+                modalLoading = false;
+                filtered = searchController.text.isEmpty
+                    ? updated
+                    : CdaCooperatives.search(searchController.text);
+              });
+            });
+
             return Container(
               height: MediaQuery.of(context).size.height * 0.8,
               padding: const EdgeInsets.all(16),
@@ -565,19 +609,33 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
+                      Row(
+                        children: [
+                          if (modalLoading) ...[
+                            const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            const SizedBox(width: 10),
+                          ],
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                   const SizedBox(height: 4),
-                  const Align(
+                  Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'Search the CDA (Cooperative Development Agency) '
-                      'registry, e.g. "Gbarnga"',
-                      style: TextStyle(
+                      modalLoading
+                          ? 'Updating CDA registry...'
+                          : 'Search the CDA (Cooperative Development Agency) '
+                                'registry, e.g. "Gbarnga"',
+                      style: const TextStyle(
                         fontSize: 12,
                         color: AppTheme.textMuted,
                       ),
