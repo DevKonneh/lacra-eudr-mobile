@@ -9,6 +9,10 @@ class FarmerRegistrationModel {
   final String? idTypeOther;
   final String? nationalId;
   final String? email;
+  // County the farmer originally comes from (place of origin) - distinct
+  // from `county` below, which is where they are being registered/
+  // currently live. Nullable: not every registration needs this filled.
+  final String? countyOfOrigin;
 
   // Cooperative / Enumerator affiliation (EUDR traceability - mirrors
   // admin panel's RegisterFarmer.tsx "Group/Cooperative Affiliation" +
@@ -31,6 +35,10 @@ class FarmerRegistrationModel {
   final String county;
   final String? district;
   final String community;
+  // Free-text residential address (house description/street) - distinct
+  // from the GPS coordinate pair (lat/lng) below and from `directions`
+  // (how to physically find the place).
+  final String? address;
   final String inspectorName;
   final double? lat;
   final double? lng;
@@ -60,6 +68,11 @@ class FarmerRegistrationModel {
   final bool useChemicals;
   final bool extensionServices;
   final String? farmAddress;
+  // Farm's own GPS reference point - distinct from the farmer's
+  // residential lat/lng above, since the farmer may live far from the
+  // farm itself.
+  final double? farmLat;
+  final double? farmLng;
 
   // Mapping Information
   final String? areaHa;
@@ -96,6 +109,7 @@ class FarmerRegistrationModel {
     this.idTypeOther,
     this.nationalId,
     this.email,
+    this.countyOfOrigin,
     this.cooperativeName,
     this.cooperativeId,
     this.cooperativeSource,
@@ -103,6 +117,7 @@ class FarmerRegistrationModel {
     required this.county,
     this.district,
     required this.community,
+    this.address,
     required this.inspectorName,
     this.lat,
     this.lng,
@@ -124,6 +139,8 @@ class FarmerRegistrationModel {
     this.useChemicals = false,
     this.extensionServices = false,
     this.farmAddress,
+    this.farmLat,
+    this.farmLng,
     this.areaHa,
     this.areaAc,
     this.boundaryJson,
@@ -148,6 +165,7 @@ class FarmerRegistrationModel {
       if (idTypeOther != null) 'idTypeOther': idTypeOther,
       if (nationalId != null) 'nationalId': nationalId,
       if (email != null) 'email': email,
+      if (countyOfOrigin != null) 'countyOfOrigin': countyOfOrigin,
       if (cooperativeName != null) 'cooperativeName': cooperativeName,
       if (cooperativeId != null) 'cooperativeId': cooperativeId,
       if (cooperativeSource != null) 'cooperativeSource': cooperativeSource,
@@ -155,6 +173,7 @@ class FarmerRegistrationModel {
       'county': county,
       if (district != null) 'district': district,
       'community': community,
+      if (address != null) 'address': address,
       'inspectorName': inspectorName,
       if (lat != null) 'lat': lat.toString(),
       if (lng != null) 'lng': lng.toString(),
@@ -176,6 +195,8 @@ class FarmerRegistrationModel {
       'useChemicals': useChemicals,
       'extensionServices': extensionServices,
       if (farmAddress != null) 'farmAddress': farmAddress,
+      if (farmLat != null) 'farmLat': farmLat.toString(),
+      if (farmLng != null) 'farmLng': farmLng.toString(),
       if (areaHa != null) 'areaHa': areaHa,
       if (areaAc != null) 'areaAc': areaAc,
       if (boundaryJson != null) 'boundaryJson': boundaryJson,
@@ -206,6 +227,7 @@ class FarmerRegistrationModel {
       'idTypeOther': idTypeOther,
       'nationalId': nationalId,
       'email': email,
+      'countyOfOrigin': countyOfOrigin,
       'cooperativeName': cooperativeName,
       'cooperativeId': cooperativeId,
       'cooperativeSource': cooperativeSource,
@@ -213,6 +235,7 @@ class FarmerRegistrationModel {
       'county': county,
       'district': district,
       'community': community,
+      'address': address,
       'inspectorName': inspectorName,
       'lat': lat,
       'lng': lng,
@@ -234,6 +257,8 @@ class FarmerRegistrationModel {
       'useChemicals': useChemicals,
       'extensionServices': extensionServices,
       'farmAddress': farmAddress,
+      'farmLat': farmLat,
+      'farmLng': farmLng,
       'areaHa': areaHa,
       'areaAc': areaAc,
       'boundaryJson': boundaryJson,
@@ -263,6 +288,7 @@ class FarmerRegistrationModel {
       idTypeOther: json['idTypeOther'] as String?,
       nationalId: json['nationalId'] as String?,
       email: json['email'] as String?,
+      countyOfOrigin: json['countyOfOrigin'] as String?,
       cooperativeName: json['cooperativeName'] as String?,
       cooperativeId: json['cooperativeId'] as String?,
       cooperativeSource: json['cooperativeSource'] as String?,
@@ -270,6 +296,7 @@ class FarmerRegistrationModel {
       county: json['county'] as String? ?? '',
       district: json['district'] as String?,
       community: json['community'] as String? ?? '',
+      address: json['address'] as String?,
       inspectorName: json['inspectorName'] as String? ?? '',
       lat: (json['lat'] as num?)?.toDouble(),
       lng: (json['lng'] as num?)?.toDouble(),
@@ -291,6 +318,8 @@ class FarmerRegistrationModel {
       useChemicals: json['useChemicals'] as bool? ?? false,
       extensionServices: json['extensionServices'] as bool? ?? false,
       farmAddress: json['farmAddress'] as String?,
+      farmLat: (json['farmLat'] as num?)?.toDouble(),
+      farmLng: (json['farmLng'] as num?)?.toDouble(),
       areaHa: json['areaHa'] as String?,
       areaAc: json['areaAc'] as String?,
       boundaryJson: json['boundaryJson'] as String?,
@@ -322,6 +351,7 @@ class FarmerRegistrationModel {
     String? idTypeOther,
     String? nationalId,
     String? email,
+    String? countyOfOrigin,
     String? cooperativeName,
     String? cooperativeId,
     String? cooperativeSource,
@@ -329,6 +359,7 @@ class FarmerRegistrationModel {
     String? county,
     String? district,
     String? community,
+    String? address,
     String? inspectorName,
     double? lat,
     double? lng,
@@ -350,6 +381,8 @@ class FarmerRegistrationModel {
     bool? useChemicals,
     bool? extensionServices,
     String? farmAddress,
+    double? farmLat,
+    double? farmLng,
     String? areaHa,
     String? areaAc,
     String? boundaryJson,
@@ -372,6 +405,7 @@ class FarmerRegistrationModel {
       idTypeOther: idTypeOther ?? this.idTypeOther,
       nationalId: nationalId ?? this.nationalId,
       email: email ?? this.email,
+      countyOfOrigin: countyOfOrigin ?? this.countyOfOrigin,
       cooperativeName: cooperativeName ?? this.cooperativeName,
       cooperativeId: cooperativeId ?? this.cooperativeId,
       cooperativeSource: cooperativeSource ?? this.cooperativeSource,
@@ -379,6 +413,7 @@ class FarmerRegistrationModel {
       county: county ?? this.county,
       district: district ?? this.district,
       community: community ?? this.community,
+      address: address ?? this.address,
       inspectorName: inspectorName ?? this.inspectorName,
       lat: lat ?? this.lat,
       lng: lng ?? this.lng,
@@ -400,6 +435,8 @@ class FarmerRegistrationModel {
       useChemicals: useChemicals ?? this.useChemicals,
       extensionServices: extensionServices ?? this.extensionServices,
       farmAddress: farmAddress ?? this.farmAddress,
+      farmLat: farmLat ?? this.farmLat,
+      farmLng: farmLng ?? this.farmLng,
       areaHa: areaHa ?? this.areaHa,
       areaAc: areaAc ?? this.areaAc,
       boundaryJson: boundaryJson ?? this.boundaryJson,

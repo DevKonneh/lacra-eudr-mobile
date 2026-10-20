@@ -94,7 +94,12 @@ class FarmerReviewStep extends StatelessWidget {
               _buildItem('Gender', formData['gender']),
               _buildItem('Date of Birth', formData['dob']),
               _buildItem('Phone Number', formData['phone']),
-              _buildItem('Nationality', formData['nationality']),
+              _buildItem('Country', formData['nationality']),
+              _buildItem(
+                'County of Origin',
+                formData['countyOfOrigin'],
+                optional: true,
+              ),
               _buildItem('National ID', formData['nationalId'], optional: true),
               _buildItem('Email', formData['email'], optional: true),
             ],
@@ -120,6 +125,11 @@ class FarmerReviewStep extends StatelessWidget {
               _buildItem(
                 'Enumerator / Inspector ID',
                 formData['enumeratorId'],
+                optional: true,
+              ),
+              _buildItem(
+                'Residential Address',
+                formData['address'],
                 optional: true,
               ),
               _buildItem('Residential Latitude', formData['lat']),
@@ -207,6 +217,16 @@ class FarmerReviewStep extends StatelessWidget {
               _buildItem(
                 'Farm Address',
                 formData['farmAddress'],
+                optional: true,
+              ),
+              _buildItem(
+                'Farm Latitude',
+                formData['farmLat'],
+                optional: true,
+              ),
+              _buildItem(
+                'Farm Longitude',
+                formData['farmLng'],
                 optional: true,
               ),
               _buildStatusItem(

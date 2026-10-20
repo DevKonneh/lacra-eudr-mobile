@@ -31,6 +31,7 @@ class _FarmerLocationStepState extends State<FarmerLocationStep> {
   final _countyController = TextEditingController();
   final _districtController = TextEditingController();
   final _communityController = TextEditingController();
+  final _addressController = TextEditingController();
   final _directionsController = TextEditingController();
   final _latController = TextEditingController();
   final _lngController = TextEditingController();
@@ -67,6 +68,7 @@ class _FarmerLocationStepState extends State<FarmerLocationStep> {
       _countyController.text = widget.initialData!['county'] ?? '';
       _districtController.text = widget.initialData!['district'] ?? '';
       _communityController.text = widget.initialData!['community'] ?? '';
+      _addressController.text = widget.initialData!['address'] ?? '';
       // Preserve any previously auto-populated values (e.g. resuming a
       // draft/pending item) as a fallback until _loadInspectorIdentity
       // confirms the currently logged-in user.
@@ -132,6 +134,7 @@ class _FarmerLocationStepState extends State<FarmerLocationStep> {
     _countyController.dispose();
     _districtController.dispose();
     _communityController.dispose();
+    _addressController.dispose();
     _directionsController.dispose();
     _latController.dispose();
     _lngController.dispose();
@@ -144,6 +147,7 @@ class _FarmerLocationStepState extends State<FarmerLocationStep> {
       'county': _countyController.text.trim(),
       'district': _districtController.text.trim(),
       'community': _communityController.text.trim(),
+      'address': _addressController.text.trim(),
       // Auto-attached in the background - not editable via this form's UI.
       'inspectorName': _inspectorName,
       'enumeratorId': _enumeratorId,
@@ -867,6 +871,15 @@ class _FarmerLocationStepState extends State<FarmerLocationStep> {
                 }
                 return null;
               },
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _addressController,
+              style: const TextStyle(fontSize: 14),
+              decoration: const InputDecoration(
+                labelText: 'Residential Address (Optional)',
+                hintText: 'House/street description, e.g., Behind the market',
+              ),
             ),
             // -----------------------------------------------------------
             // Cooperative / Group Affiliation - moved here (from Personal

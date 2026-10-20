@@ -314,9 +314,11 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
         idTypeOther: _formData['idTypeOther'],
         nationalId: _formData['nationalId'],
         email: _formData['email'],
+        countyOfOrigin: _formData['countyOfOrigin'],
         county: _formData['county'] ?? '',
         district: _formData['district'],
         community: _formData['community'] ?? '',
+        address: _formData['address'],
         inspectorName: _formData['inspectorName'] ?? '',
         lat: _formData['lat'],
         lng: _formData['lng'],
@@ -358,6 +360,8 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
         useChemicals: _formData['useChemicals'] ?? false,
         extensionServices: _formData['extensionServices'] ?? false,
         farmAddress: _formData['farmAddress'],
+        farmLat: (_formData['farmLat'] as num?)?.toDouble(),
+        farmLng: (_formData['farmLng'] as num?)?.toDouble(),
         signaturePath: _formData['signaturePath'],
       );
 

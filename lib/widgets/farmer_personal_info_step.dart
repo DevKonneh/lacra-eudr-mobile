@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import '../data/liberia_locations.dart';
 import '../theme/app_theme.dart';
 import 'media_capture_field.dart';
 
@@ -28,6 +29,7 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
   final _idTypeOtherController = TextEditingController();
   final _nationalIdController = TextEditingController();
   final _emailController = TextEditingController();
+  final _countyOfOriginController = TextEditingController();
   String? _idType;
 
   // Task spec section 1: ID Type must be one of these four options (no
@@ -267,7 +269,18 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
       } else {
         _phoneController.text = phone;
       }
-      _nationalityController.text = widget.initialData!['nationality'] ?? '';
+      final existingNationality = widget.initialData!['nationality'] as String?;
+      // Default to Liberian for a brand-new form (most farmers registered
+      // are Liberian) - only applied when nothing has been set yet, so an
+      // existing draft/pending item that was already filled out (including
+      // one where the enumerator deliberately chose a different
+      // nationality) is never silently overwritten.
+      _nationalityController.text =
+          (existingNationality == null || existingNationality.isEmpty)
+          ? 'Liberian'
+          : existingNationality;
+      _countyOfOriginController.text =
+          widget.initialData!['countyOfOrigin'] ?? '';
       final idTypeValue = widget.initialData!['idType'] as String?;
       // Backwards-compat: older saved drafts/pending items may still carry
       // the previous option labels (e.g. "National ID card", "Others") -
@@ -310,6 +323,7 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
     _idTypeOtherController.dispose();
     _nationalIdController.dispose();
     _emailController.dispose();
+    _countyOfOriginController.dispose();
     super.dispose();
   }
 
@@ -326,6 +340,7 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
           : _dobController.text.trim(),
       'phone': phoneWithPrefix,
       'nationality': _nationalityController.text.trim(),
+      'countyOfOrigin': _countyOfOriginController.text.trim(),
       'idType': _idType ?? '',
       'idTypeOther': _idType == 'Other'
           ? _idTypeOtherController.text.trim()
@@ -511,6 +526,123 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
     );
   }
 
+  void _showCountyOfOriginBottomSheet() {
+    final TextEditingController searchController = TextEditingController();
+    List<String> filteredCounties = List.from(LiberiaLocations.counties);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            void filterCounties(String query) {
+              setModalState(() {
+                if (query.isEmpty) {
+                  filteredCounties = List.from(LiberiaLocations.counties);
+                } else {
+                  filteredCounties = LiberiaLocations.counties
+                      .where(
+                        (county) =>
+                            county.toLowerCase().contains(query.toLowerCase()),
+                      )
+                      .toList();
+                }
+              });
+            }
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.7,
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Select County of Origin',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search county...',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                searchController.clear();
+                                filterCounties('');
+                              },
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      filled: true,
+                      fillColor: AppTheme.background,
+                    ),
+                    onChanged: filterCounties,
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: filteredCounties.isEmpty
+                        ? const Center(
+                            child: Text(
+                              'No counties found',
+                              style: TextStyle(color: AppTheme.textSecondary),
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: filteredCounties.length,
+                            itemBuilder: (context, index) {
+                              final county = filteredCounties[index];
+                              final isSelected =
+                                  _countyOfOriginController.text == county;
+                              return ListTile(
+                                title: Text(county),
+                                trailing: isSelected
+                                    ? const Icon(
+                                        Icons.check,
+                                        color: AppTheme.primaryGreen,
+                                      )
+                                    : null,
+                                selected: isSelected,
+                                selectedTileColor: AppTheme.paleGreen,
+                                onTap: () {
+                                  setState(() {
+                                    _countyOfOriginController.text = county;
+                                    _updateData();
+                                  });
+                                  Navigator.pop(context);
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   bool validate() {
     return _formKey.currentState?.validate() ?? false;
   }
@@ -622,11 +754,23 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
               readOnly: true,
               style: const TextStyle(fontSize: 14),
               decoration: InputDecoration(
-                labelText: 'Nationality',
+                labelText: 'Country',
                 hintText: 'Tap to select',
                 suffixIcon: const Icon(Icons.arrow_drop_down),
               ),
               onTap: _showNationalityBottomSheet,
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _countyOfOriginController,
+              readOnly: true,
+              style: const TextStyle(fontSize: 14),
+              decoration: InputDecoration(
+                labelText: 'County of Origin',
+                hintText: 'Where the farmer originally comes from',
+                suffixIcon: const Icon(Icons.arrow_drop_down),
+              ),
+              onTap: _showCountyOfOriginBottomSheet,
             ),
 
             // -----------------------------------------------------------

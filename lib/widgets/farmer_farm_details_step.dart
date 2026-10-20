@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import '../services/gps_service.dart';
 import '../theme/app_theme.dart';
 
 class FarmerFarmDetailsStep extends StatefulWidget {
@@ -30,6 +32,10 @@ class _FarmerFarmDetailsStepState extends State<FarmerFarmDetailsStep> {
   final _averageYieldController = TextEditingController();
   final _buyersController = TextEditingController();
   final _farmAddressController = TextEditingController();
+  final _farmLatController = TextEditingController();
+  final _farmLngController = TextEditingController();
+  final GpsService _gpsService = GpsService();
+  bool _isCapturingFarmGps = false;
   bool _useChemicals = false;
   bool _extensionServices = false;
 
@@ -62,6 +68,12 @@ class _FarmerFarmDetailsStepState extends State<FarmerFarmDetailsStep> {
       _averageYieldController.text = widget.initialData!['averageYield'] ?? '';
       _buyersController.text = widget.initialData!['buyers'] ?? '';
       _farmAddressController.text = widget.initialData!['farmAddress'] ?? '';
+      if (widget.initialData!['farmLat'] != null) {
+        _farmLatController.text = widget.initialData!['farmLat'].toString();
+      }
+      if (widget.initialData!['farmLng'] != null) {
+        _farmLngController.text = widget.initialData!['farmLng'].toString();
+      }
       _useChemicals = widget.initialData!['useChemicals'] ?? false;
       _extensionServices = widget.initialData!['extensionServices'] ?? false;
     }
@@ -83,6 +95,8 @@ class _FarmerFarmDetailsStepState extends State<FarmerFarmDetailsStep> {
     _averageYieldController.dispose();
     _buyersController.dispose();
     _farmAddressController.dispose();
+    _farmLatController.dispose();
+    _farmLngController.dispose();
     super.dispose();
   }
 
@@ -107,9 +121,54 @@ class _FarmerFarmDetailsStepState extends State<FarmerFarmDetailsStep> {
       'averageYield': _averageYieldController.text.trim(),
       'buyers': _buyersController.text.trim(),
       'farmAddress': _farmAddressController.text.trim(),
+      'farmLat': _farmLatController.text.trim().isNotEmpty
+          ? double.tryParse(_farmLatController.text.trim())
+          : null,
+      'farmLng': _farmLngController.text.trim().isNotEmpty
+          ? double.tryParse(_farmLngController.text.trim())
+          : null,
       'useChemicals': _useChemicals,
       'extensionServices': _extensionServices,
     });
+  }
+
+  Future<void> _captureFarmGps() async {
+    setState(() => _isCapturingFarmGps = true);
+    try {
+      final position = await _gpsService.getCurrentLocation(
+        timeLimit: const Duration(seconds: 30),
+        accuracy: LocationAccuracy.high,
+      );
+      if (position != null) {
+        setState(() {
+          _farmLatController.text = position.latitude.toStringAsFixed(6);
+          _farmLngController.text = position.longitude.toStringAsFixed(6);
+          _updateData();
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Farm location captured - accuracy '
+                '${position.accuracy.toStringAsFixed(0)} m',
+              ),
+              backgroundColor: AppTheme.success,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not get farm location: $e'),
+            backgroundColor: AppTheme.danger,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isCapturingFarmGps = false);
+    }
   }
 
   String generateFarmName(Map<String, dynamic>? allData) {
@@ -419,7 +478,60 @@ class _FarmerFarmDetailsStepState extends State<FarmerFarmDetailsStep> {
                 hintText: 'e.g., Off main road, near river crossing',
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 20),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _farmLatController,
+                    readOnly: true,
+                    style: const TextStyle(fontSize: 14),
+                    decoration: const InputDecoration(
+                      labelText: 'Farm Latitude',
+                      hintText: '—',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    controller: _farmLngController,
+                    readOnly: true,
+                    style: const TextStyle(fontSize: 14),
+                    decoration: const InputDecoration(
+                      labelText: 'Farm Longitude',
+                      hintText: '—',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: _isCapturingFarmGps ? null : _captureFarmGps,
+              icon: _isCapturingFarmGps
+                  ? const SizedBox(
+                      width: 15,
+                      height: 15,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.location_on_outlined, size: 18),
+              label: Text(
+                _isCapturingFarmGps
+                    ? 'Getting farm location...'
+                    : (_farmLatController.text.isEmpty
+                          ? 'Pin farm GPS location'
+                          : 'Update farm GPS location'),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppTheme.primaryGreen,
+                side: const BorderSide(color: AppTheme.primaryGreen),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                minimumSize: const Size(double.infinity, 44),
+              ),
+            ),
+            const SizedBox(height: 16),
             CheckboxListTile(
               value: _useChemicals,
               activeColor: AppTheme.primaryGreen,

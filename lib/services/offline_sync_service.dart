@@ -102,10 +102,11 @@ class OfflineSyncService {
       'idType': data.idType,
       'idTypeOther': data.idTypeOther,
       'gender': data.gender,
-      'address': data.directions,
+      'address': data.address,
       'community': data.community,
       'district': data.district,
       'region': data.county,
+      if (data.countyOfOrigin != null) 'countyOfOrigin': data.countyOfOrigin,
       'consent': data.consent,
       'cooperativeName': data.cooperativeName,
       'cooperativeId': data.cooperativeId,
@@ -143,6 +144,8 @@ class OfflineSyncService {
       'useChemicals': data.useChemicals,
       'extensionServices': data.extensionServices,
       if (data.farmAddress != null) 'farmAddress': data.farmAddress,
+      if (data.farmLat != null) 'farmLat': data.farmLat,
+      if (data.farmLng != null) 'farmLng': data.farmLng,
     };
   }
 
