@@ -127,14 +127,28 @@ class CdaCooperatives {
   /// Case-insensitive substring search over cooperative name AND county,
   /// used by the searchable dropdown (e.g. typing "Gbarnga" or "Lofa"
   /// matches accordingly).
-  static List<CdaCooperative> search(String query) {
+  ///
+  /// When [county] is provided (non-empty), results are first narrowed to
+  /// only cooperatives whose `county` exactly matches it (case-insensitive)
+  /// before the free-text [query] is applied on top - this is what powers
+  /// FarmerLocationStep's "only show cooperatives in the selected county"
+  /// behaviour, so the enumerator never has to scroll the full ~95-entry
+  /// national registry once a county has been chosen.
+  static List<CdaCooperative> search(String query, {String? county}) {
     final q = query.trim().toLowerCase();
-    if (q.isEmpty) return entries;
-    return entries
+    final c = county?.trim().toLowerCase();
+
+    Iterable<CdaCooperative> base = entries;
+    if (c != null && c.isNotEmpty) {
+      base = base.where((e) => (e.county?.trim().toLowerCase() ?? '') == c);
+    }
+
+    if (q.isEmpty) return base.toList(growable: false);
+    return base
         .where(
-          (c) =>
-              c.name.toLowerCase().contains(q) ||
-              (c.county?.toLowerCase().contains(q) ?? false),
+          (e) =>
+              e.name.toLowerCase().contains(q) ||
+              (e.county?.toLowerCase().contains(q) ?? false),
         )
         .toList(growable: false);
   }

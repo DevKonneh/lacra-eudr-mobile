@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import '../data/cda_cooperatives.dart';
-import '../services/cooperative_registry_service.dart';
 import '../theme/app_theme.dart';
 import 'media_capture_field.dart';
 
@@ -30,7 +28,6 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
   final _idTypeOtherController = TextEditingController();
   final _nationalIdController = TextEditingController();
   final _emailController = TextEditingController();
-  final _cooperativeOtherNameController = TextEditingController();
   String? _idType;
 
   // Task spec section 1: ID Type must be one of these four options (no
@@ -47,21 +44,13 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
   String? _idDocumentPath;
   DateTime? _selectedDate;
 
-  // Cooperative affiliation (task spec section 2): replaces the old free-
-  // text "Cooperative Name" + "Cooperative ID" fields with a searchable
-  // dropdown backed by the CDA registry placeholder dataset, plus an
-  // "Other / Not Listed" option that reveals a free-text name field.
-  // _cooperativeName holds either a real CDA entry's name, or (when
-  // _cooperativeSource == OTHER) whatever the enumerator typed manually.
-  String? _cooperativeName;
-  String _cooperativeSource = ''; // 'CDA_REGISTRY' | 'OTHER' | ''
-  // True while the real CDA registry is being fetched from the backend (or
-  // loaded from its offline cache) for the first time this screen is shown.
-  // The picker still opens immediately with whatever's already in
-  // CdaCooperatives.entries (offline seed/previous cache) - this flag just
-  // drives a small inline spinner in the bottom sheet while a fresher list
-  // loads in the background.
-  bool _loadingCooperatives = false;
+  // NOTE: Cooperative / Group Affiliation used to live here but has moved
+  // to FarmerLocationStep (Location & GPS step), since it needs to be
+  // filtered by County - which is only known in that later step. See
+  // farmer_location_step.dart for the current implementation. The
+  // 'cooperativeName'/'cooperativeId'/'cooperativeSource' keys are still
+  // read from/written to the same shared _formData map, so no change was
+  // needed to FarmerRegistrationModel or the backend.
 
   // Complete list of countries
   static const List<String> _allCountries = [
@@ -259,7 +248,6 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
   @override
   void initState() {
     super.initState();
-    _loadCooperativeRegistry();
     if (widget.initialData != null) {
       _fullNameController.text = widget.initialData!['fullName'] ?? '';
       _genderController.text = widget.initialData!['gender'] ?? '';
@@ -289,39 +277,10 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
       _idTypeOtherController.text = widget.initialData!['idTypeOther'] ?? '';
       _nationalIdController.text = widget.initialData!['nationalId'] ?? '';
       _emailController.text = widget.initialData!['email'] ?? '';
-      final existingCoopName = widget.initialData!['cooperativeName'] as String?;
-      final existingCoopSource =
-          widget.initialData!['cooperativeSource'] as String? ?? '';
-      if (existingCoopName != null && existingCoopName.isNotEmpty) {
-        _cooperativeName = existingCoopName;
-        _cooperativeSource = existingCoopSource.isNotEmpty
-            ? existingCoopSource
-            : 'CDA_REGISTRY';
-        if (_cooperativeSource == 'OTHER') {
-          _cooperativeOtherNameController.text = existingCoopName;
-        }
-      }
       _photoPath = widget.initialData!['farmerPhotoPath'];
       _idDocumentPath = widget.initialData!['nationalIdPath'];
     }
     _updateData();
-  }
-
-  /// Kicks off (but doesn't block on) fetching the real CDA registry so
-  /// it's ready - or at least refreshing - by the time the enumerator taps
-  /// the Cooperative field. Errors are swallowed here: CooperativeRegistryService
-  /// already falls back to cache/offline-seed internally, so there's
-  /// nothing actionable to show the user from this background call.
-  Future<void> _loadCooperativeRegistry() async {
-    if (!mounted) return;
-    setState(() => _loadingCooperatives = true);
-    try {
-      await CooperativeRegistryService.load();
-    } catch (_) {
-      // Already logged inside the service; nothing more to do here.
-    } finally {
-      if (mounted) setState(() => _loadingCooperatives = false);
-    }
   }
 
   String? _normalizeIdType(String? raw) {
@@ -351,7 +310,6 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
     _idTypeOtherController.dispose();
     _nationalIdController.dispose();
     _emailController.dispose();
-    _cooperativeOtherNameController.dispose();
     super.dispose();
   }
 
@@ -375,11 +333,13 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
       'nationalId': _nationalIdController.text.trim(),
       'nationalIdPath': _idDocumentPath,
       'email': _emailController.text.trim(),
-      'cooperativeName': _cooperativeName ?? '',
-      // cooperativeId intentionally no longer collected from the
-      // enumerator (task spec section 2) - do not fabricate one.
-      'cooperativeId': '',
-      'cooperativeSource': _cooperativeSource,
+      // NOTE: cooperativeName/cooperativeId/cooperativeSource are no longer
+      // emitted from this step - they're now owned by FarmerLocationStep
+      // (see that file's _updateData()). Deliberately NOT including empty
+      // placeholder values for these keys here, since _formData.addAll()
+      // in FarmerRegistryScreen would otherwise let this step's (now
+      // irrelevant) merge clobber whatever FarmerLocationStep already set,
+      // depending on which step last rebuilt.
       'farmerPhotoPath': _photoPath,
     });
   }
@@ -549,266 +509,6 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
         );
       },
     );
-  }
-
-  /// Searchable "Cooperative / Group Affiliation" picker, backed by the
-  /// real CDA registry (see cda_cooperatives.dart and
-  /// CooperativeRegistryService) - mirrors the nationality bottom-sheet's
-  /// search-as-you-type pattern above. Always includes an "Other / Not
-  /// Listed" entry at the top of results so the enumerator is never
-  /// blocked from registering a farmer whose cooperative isn't (yet) in
-  /// the registry.
-  void _showCooperativeBottomSheet() {
-    final TextEditingController searchController = TextEditingController();
-    List<CdaCooperative> filtered = List.from(CdaCooperatives.entries);
-    // Re-check for a fresher registry every time the picker opens (cheap
-    // no-op if already loaded this session) rather than relying solely on
-    // the one-shot initState() load, in case that earlier attempt failed
-    // (e.g. opened the form while offline, then regained connectivity).
-    bool modalLoading = _loadingCooperatives;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            void filterCoops(String query) {
-              setModalState(() {
-                filtered = CdaCooperatives.search(query);
-              });
-            }
-
-            // Kick off (once per sheet-open) a refresh and update the
-            // visible list/spinner when it resolves.
-            CooperativeRegistryService.load().then((updated) {
-              if (!context.mounted) return;
-              setModalState(() {
-                modalLoading = false;
-                filtered = searchController.text.isEmpty
-                    ? updated
-                    : CdaCooperatives.search(searchController.text);
-              });
-            });
-
-            return Container(
-              height: MediaQuery.of(context).size.height * 0.8,
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Select Cooperative',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          if (modalLoading) ...[
-                            const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                            const SizedBox(width: 10),
-                          ],
-                          IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      modalLoading
-                          ? 'Updating CDA registry...'
-                          : 'Search the CDA (Cooperative Development Agency) '
-                                'registry, e.g. "Gbarnga"',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textMuted,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Search cooperative name or county...',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                searchController.clear();
-                                filterCoops('');
-                              },
-                            )
-                          : null,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      filled: true,
-                      fillColor: AppTheme.background,
-                    ),
-                    onChanged: filterCoops,
-                  ),
-                  const SizedBox(height: 12),
-                  // "Other / Not Listed" is always visible so an enumerator
-                  // can pick it even before typing anything.
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppTheme.warningBg,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: AppTheme.warning.withValues(alpha: 0.4),
-                      ),
-                    ),
-                    child: ListTile(
-                      leading: const Icon(
-                        Icons.edit_note,
-                        color: AppTheme.warning,
-                      ),
-                      title: const Text(
-                        'Other / Not Listed',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      subtitle: const Text(
-                        'Enter the cooperative name manually',
-                        style: TextStyle(fontSize: 11.5),
-                      ),
-                      onTap: () async {
-                        Navigator.pop(context);
-                        await _promptOtherCooperativeName();
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Expanded(
-                    child: filtered.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.search_off,
-                                  size: 48,
-                                  color: AppTheme.textMuted,
-                                ),
-                                const SizedBox(height: 16),
-                                const Text(
-                                  'No cooperatives found.\nUse "Other / Not Listed" above.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: AppTheme.textSecondary,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        : ListView.builder(
-                            itemCount: filtered.length,
-                            itemBuilder: (context, index) {
-                              final coop = filtered[index];
-                              final isSelected =
-                                  _cooperativeSource == 'CDA_REGISTRY' &&
-                                  _cooperativeName == coop.name;
-                              return ListTile(
-                                title: Text(coop.name),
-                                subtitle: coop.county != null
-                                    ? Text(coop.county!)
-                                    : null,
-                                trailing: isSelected
-                                    ? const Icon(
-                                        Icons.check,
-                                        color: AppTheme.primaryGreen,
-                                      )
-                                    : null,
-                                selected: isSelected,
-                                selectedTileColor: AppTheme.paleGreen,
-                                onTap: () {
-                                  setState(() {
-                                    _cooperativeSource = 'CDA_REGISTRY';
-                                    _cooperativeName = coop.name;
-                                    _updateData();
-                                  });
-                                  Navigator.pop(context);
-                                },
-                              );
-                            },
-                          ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<void> _promptOtherCooperativeName() async {
-    _cooperativeOtherNameController.text =
-        _cooperativeSource == 'OTHER' ? (_cooperativeName ?? '') : '';
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Enter Cooperative Name'),
-          content: TextField(
-            controller: _cooperativeOtherNameController,
-            autofocus: true,
-            decoration: const InputDecoration(
-              hintText: 'e.g., Bopolu Farmers Cooperative',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(
-                ctx,
-                _cooperativeOtherNameController.text.trim(),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryGreen,
-              ),
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
-    if (result != null && result.isNotEmpty) {
-      setState(() {
-        _cooperativeSource = 'OTHER';
-        _cooperativeName = result;
-        _updateData();
-      });
-    }
-  }
-
-  void _clearCooperative() {
-    setState(() {
-      _cooperativeSource = '';
-      _cooperativeName = null;
-      _cooperativeOtherNameController.clear();
-      _updateData();
-    });
   }
 
   bool validate() {
@@ -1049,67 +749,6 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
                 return null;
               },
             ),
-
-            // -----------------------------------------------------------
-            // Cooperative / Group Affiliation (task spec section 2)
-            // -----------------------------------------------------------
-            const SizedBox(height: 24),
-            const Text(
-              'Group / Cooperative Affiliation (Optional)',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            InkWell(
-              onTap: _showCooperativeBottomSheet,
-              borderRadius: BorderRadius.circular(12),
-              child: InputDecorator(
-                decoration: InputDecoration(
-                  labelText: 'Cooperative',
-                  hintText: 'Tap to search CDA registry',
-                  suffixIcon: (_cooperativeName != null &&
-                          _cooperativeName!.isNotEmpty)
-                      ? IconButton(
-                          icon: const Icon(Icons.close, size: 18),
-                          onPressed: _clearCooperative,
-                        )
-                      : const Icon(Icons.search),
-                ),
-                child: Text(
-                  (_cooperativeName != null && _cooperativeName!.isNotEmpty)
-                      ? _cooperativeName!
-                      : 'Not selected',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: (_cooperativeName != null &&
-                            _cooperativeName!.isNotEmpty)
-                        ? Colors.black87
-                        : AppTheme.textMuted,
-                  ),
-                ),
-              ),
-            ),
-            if (_cooperativeSource == 'OTHER' &&
-                _cooperativeName != null &&
-                _cooperativeName!.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  const Icon(Icons.info_outline,
-                      size: 14, color: AppTheme.warning),
-                  const SizedBox(width: 6),
-                  const Expanded(
-                    child: Text(
-                      'Not found in CDA registry - flagged for later review.',
-                      style: TextStyle(fontSize: 11.5, color: AppTheme.warning),
-                    ),
-                  ),
-                ],
-              ),
-            ],
 
             // -----------------------------------------------------------
             // Farmer Photo (task spec section 3) - official profile photo

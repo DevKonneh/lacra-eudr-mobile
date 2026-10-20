@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 import 'dart:convert';
 import 'dart:io';
 import '../theme/app_theme.dart';
@@ -14,6 +15,52 @@ class FarmerReviewStep extends StatelessWidget {
     required this.formData,
     this.boundaryJson,
   });
+
+  /// Centroid (simple average of ring vertices) of the mapped farm
+  /// boundary polygon, or null if no boundary has been drawn yet. Mirrors
+  /// the same `geometry.coordinates[0]` GeoJSON-ish shape BoundaryPreviewMap
+  /// already reads (see that file), kept independent here (no LatLng/Google
+  /// Maps dependency needed) since this is only used for a distance
+  /// calculation, not rendering.
+  ({double lat, double lng})? get _farmBoundaryCentroid {
+    try {
+      final geometry = boundaryJson?['geometry'] as Map<String, dynamic>?;
+      final coordinates = geometry?['coordinates'] as List?;
+      final ring = coordinates != null && coordinates.isNotEmpty
+          ? coordinates[0] as List
+          : null;
+      if (ring == null || ring.isEmpty) return null;
+      double latSum = 0, lngSum = 0;
+      int count = 0;
+      for (final c in ring) {
+        final coord = c as List;
+        lngSum += (coord[0] as num).toDouble();
+        latSum += (coord[1] as num).toDouble();
+        count++;
+      }
+      if (count == 0) return null;
+      return (lat: latSum / count, lng: lngSum / count);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Straight-line distance (meters) between the farmer's captured
+  /// Residential GPS (formData['lat']/['lng']) and the mapped farm
+  /// boundary's centroid - gives the enumerator/office a quick
+  /// decision-making signal when the farmer lives far from their farm.
+  /// Returns null if either point is unavailable.
+  double? get _residenceToFarmDistanceMeters {
+    final centroid = _farmBoundaryCentroid;
+    if (centroid == null) return null;
+    final resLat = formData['lat'];
+    final resLng = formData['lng'];
+    if (resLat == null || resLng == null) return null;
+    final lat = resLat is num ? resLat.toDouble() : double.tryParse('$resLat');
+    final lng = resLng is num ? resLng.toDouble() : double.tryParse('$resLng');
+    if (lat == null || lng == null) return null;
+    return Geolocator.distanceBetween(lat, lng, centroid.lat, centroid.lng);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,16 +97,6 @@ class FarmerReviewStep extends StatelessWidget {
               _buildItem('Nationality', formData['nationality']),
               _buildItem('National ID', formData['nationalId'], optional: true),
               _buildItem('Email', formData['email'], optional: true),
-              _buildItem(
-                'Cooperative Name',
-                formData['cooperativeName'],
-                optional: true,
-              ),
-              _buildItem(
-                'Cooperative ID',
-                formData['cooperativeId'],
-                optional: true,
-              ),
             ],
           ),
 
@@ -74,17 +111,54 @@ class FarmerReviewStep extends StatelessWidget {
               _buildItem('County', formData['county']),
               _buildItem('District', formData['district'], optional: true),
               _buildItem('Community/Town/Village', formData['community']),
+              _buildItem(
+                'Cooperative Name',
+                formData['cooperativeName'],
+                optional: true,
+              ),
               _buildItem('Inspector Name', formData['inspectorName']),
               _buildItem(
                 'Enumerator / Inspector ID',
                 formData['enumeratorId'],
                 optional: true,
               ),
-              _buildItem('Latitude', formData['lat']),
-              _buildItem('Longitude', formData['lng']),
-              _buildItem('Directions', formData['directions'], optional: true),
+              _buildItem('Residential Latitude', formData['lat']),
+              _buildItem('Residential Longitude', formData['lng']),
+              _buildItem(
+                'Directions to Residence',
+                formData['directions'],
+                optional: true,
+              ),
             ],
           ),
+          if (_residenceToFarmDistanceMeters != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppTheme.infoBg,
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.social_distance, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Farmer\'s residence is approximately '
+                      '${_formatDistance(_residenceToFarmDistanceMeters!)} '
+                      'from the mapped farm boundary.',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
 
           const SizedBox(height: 16),
 
@@ -318,6 +392,13 @@ class FarmerReviewStep extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _formatDistance(double meters) {
+    if (meters >= 1000) {
+      return '${(meters / 1000).toStringAsFixed(1)} km';
+    }
+    return '${meters.toStringAsFixed(0)} m';
   }
 
   Widget _buildItem(String label, dynamic value, {bool optional = false}) {

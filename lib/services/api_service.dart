@@ -644,9 +644,19 @@ class ApiService {
   /// non-sensitive reference data, also needed by the admin panel's
   /// unauthenticated public farmer-registration page), and omitting the
   /// token here means a stale/expired token never blocks loading it.
-  Future<List<CdaCooperative>> getCooperatives() async {
+  /// If [county] is provided (non-empty), the backend's `?county=` query
+  /// param (see CooperativeController.getAll()) narrows the result to only
+  /// that county's cooperatives - used by FarmerLocationStep so a freshly
+  /// re-fetched/offline-uncached county's list is still scoped correctly.
+  /// In normal usage the app relies on caching the FULL list once (see
+  /// CooperativeRegistryService) and filtering client-side instead, so this
+  /// parameter mainly matters for a deliberate server-side refresh.
+  Future<List<CdaCooperative>> getCooperatives({String? county}) async {
     try {
-      final url = '$baseUrl/cooperatives';
+      final hasCounty = county != null && county.trim().isNotEmpty;
+      final url = hasCounty
+          ? '$baseUrl/cooperatives?county=${Uri.encodeQueryComponent(county.trim())}'
+          : '$baseUrl/cooperatives';
 
       _log('API REQUEST - Get Cooperatives: GET $url');
 
