@@ -767,7 +767,7 @@ class _FarmerPersonalInfoStepState extends State<FarmerPersonalInfoStep> {
               style: const TextStyle(fontSize: 14),
               decoration: InputDecoration(
                 labelText: 'County of Origin',
-                hintText: 'Where the farmer originally comes from',
+                hintText: 'Tap to select',
                 suffixIcon: const Icon(Icons.arrow_drop_down),
               ),
               onTap: _showCountyOfOriginBottomSheet,

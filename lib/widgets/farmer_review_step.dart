@@ -139,36 +139,13 @@ class FarmerReviewStep extends StatelessWidget {
                 formData['directions'],
                 optional: true,
               ),
+              if (_residenceToFarmDistanceMeters != null)
+                _buildItem(
+                  'Distance to Farm',
+                  '~${_formatDistance(_residenceToFarmDistanceMeters!)}',
+                ),
             ],
           ),
-          if (_residenceToFarmDistanceMeters != null) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppTheme.infoBg,
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.social_distance, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Farmer\'s residence is approximately '
-                      '${_formatDistance(_residenceToFarmDistanceMeters!)} '
-                      'from the mapped farm boundary.',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
 
           const SizedBox(height: 16),
 

@@ -181,8 +181,8 @@ class _FarmerRegistryScreenState extends State<FarmerRegistryScreen> {
         if (isEmpty('district')) return 'Please select a district.';
         if (isEmpty('community')) return 'Community is required.';
         if (_formData['lat'] == null || _formData['lng'] == null) {
-          return 'GPS location has not been captured. Tap "CAPTURE '
-              'FARMER\'S RESIDENTIAL GPS" before continuing.';
+          return 'Please capture the farmer\'s residential GPS before '
+              'continuing.';
         }
         // Internal integrity guard - inspectorName/enumeratorId are
         // auto-attached from the logged-in session in the background
