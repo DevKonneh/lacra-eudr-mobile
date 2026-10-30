@@ -1,5 +1,9 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:file_picker/file_picker.dart';
 
 class WebViewScreen extends StatefulWidget {
   const WebViewScreen({super.key});
@@ -75,6 +79,42 @@ class _WebViewScreenState extends State<WebViewScreen> {
         ),
       )
       ..loadRequest(Uri.parse(_url!));
+
+    // CRITICAL: Android's WebView does NOT support HTML
+    // `<input type="file">` uploads out of the box - tapping an upload
+    // control inside a page like the LACRA /apply registration form
+    // silently does nothing unless the host app supplies a file-selector
+    // handler. iOS's WKWebView-based implementation already has native
+    // file-chooser support, so this is only needed on Android.
+    final platformController = _controller!.platform;
+    if (!kIsWeb && Platform.isAndroid && platformController is AndroidWebViewController) {
+      platformController.setOnShowFileSelector(_androidFilePicker);
+    }
+  }
+
+  // Bridges Android WebView's native file-chooser request to Flutter's
+  // file_picker package. Returns the selected file(s) as `file://` URIs,
+  // which is what the platform's underlying ValueCallback<Uri[]> expects.
+  // An empty list (e.g. the user cancels, or picking fails) correctly
+  // cancels the web page's upload dialog rather than leaving it hanging.
+  Future<List<String>> _androidFilePicker(FileSelectorParams params) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: params.mode == FileSelectorMode.openMultiple,
+        type: FileType.any,
+      );
+      final paths = result?.files
+          .map((f) => f.path)
+          .whereType<String>()
+          .toList();
+      if (paths == null || paths.isEmpty) return [];
+      return paths.map((p) => Uri.file(p).toString()).toList();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('WebView file selector error: $e');
+      }
+      return [];
+    }
   }
 
   @override

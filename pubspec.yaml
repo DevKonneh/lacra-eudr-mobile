@@ -46,6 +46,10 @@ dependencies:
   
   # In-app webview
   webview_flutter: ^4.4.2
+  # Android-specific WebView controller APIs (needed to wire up the
+  # native file-chooser for HTML <input type="file"> uploads inside the
+  # embedded LACRA /apply registration form - see webview_screen.dart).
+  webview_flutter_android: ^4.10.11
   
   # Poppins font support
   google_fonts: ^8.0.0
