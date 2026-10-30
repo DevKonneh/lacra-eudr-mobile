@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
+import '../config/feature_access.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../routes/app_routes.dart';
@@ -8,6 +9,12 @@ import 'farmer_registry_screen.dart';
 import 'farmers_list_screen.dart';
 import 'create_inspector_screen.dart';
 import 'profile_screen.dart';
+
+/// Live, public License & Permit Application form - the exact same page
+/// served at https://lacra-admin.onrender.com/apply, embedded in-app via
+/// WebView so there is a single source of truth for the form (no separate
+/// native re-implementation to keep in sync).
+const String _licenseApplyUrl = 'https://lacra-admin.onrender.com/apply';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -21,6 +28,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   late TabController _tabController;
   final _authService = AuthService();
   bool _isAdmin = false;
+  bool _canAccessLicenseApply = false;
   User? _currentUser;
 
   @override
@@ -36,8 +44,21 @@ class _DashboardScreenState extends State<DashboardScreen>
       setState(() {
         _currentUser = user;
         _isAdmin = user.role.toUpperCase() == 'ADMIN';
+        _canAccessLicenseApply = FeatureAccess.canAccessLicenseApply(
+          user.email,
+        );
       });
     }
+  }
+
+  void _openLicenseApply() {
+    Navigator.of(context).pushNamed(
+      AppRoutes.webview,
+      arguments: {
+        'url': _licenseApplyUrl,
+        'title': 'License & Permit Application',
+      },
+    );
   }
 
   String _userInitial() {
@@ -216,6 +237,19 @@ class _DashboardScreenState extends State<DashboardScreen>
               ).pushNamed(AppRoutes.qrScanner, arguments: 'batch');
             },
           ),
+          // Pilot feature: restricted to a single test account for now
+          // (see FeatureAccess.licenseApplyTestEmails) - does not affect
+          // farm data collection for any other user.
+          if (_canAccessLicenseApply) ...[
+            const SizedBox(height: 14),
+            _scannerActionCard(
+              icon: Icons.fact_check_outlined,
+              title: 'License & Permit Application',
+              subtitle: 'Apply for or verify a License/Permit (pilot)',
+              accent: AppTheme.warning,
+              onTap: _openLicenseApply,
+            ),
+          ],
         ],
       ),
     );
@@ -246,10 +280,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
             const SizedBox(width: 12),
             const Expanded(
-              child: Text(
-                'LACRA Dashboard',
-                overflow: TextOverflow.ellipsis,
-              ),
+              child: Text('LACRA Dashboard', overflow: TextOverflow.ellipsis),
             ),
           ],
         ),

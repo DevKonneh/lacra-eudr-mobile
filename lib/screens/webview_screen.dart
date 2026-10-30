@@ -13,12 +13,25 @@ class _WebViewScreenState extends State<WebViewScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   String? _url;
+  String _title = 'Details';
+  bool _initialized = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_url == null) {
-      _url = ModalRoute.of(context)?.settings.arguments as String?;
+    if (!_initialized) {
+      _initialized = true;
+      // Arguments are either a plain String (the URL - used by the QR
+      // scanner, kept for backward compatibility) or a Map with 'url' and
+      // optional 'title' keys (used by the License & Permit Application
+      // entry point, which needs a custom app-bar title).
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is String) {
+        _url = args;
+      } else if (args is Map) {
+        _url = args['url'] as String?;
+        _title = (args['title'] as String?) ?? _title;
+      }
       _initializeWebView();
     }
   }
@@ -68,7 +81,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Details'),
+        title: Text(_title),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
