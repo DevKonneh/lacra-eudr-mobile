@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:printing/printing.dart';
 
 class WebViewScreen extends StatefulWidget {
   const WebViewScreen({super.key});
@@ -51,6 +53,24 @@ class _WebViewScreenState extends State<WebViewScreen> {
 
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      // CRITICAL: Android's WebView has no working `<a download>` / blob
+      // download handling and `window.print()` is a silent no-op (there
+      // is no print renderer wired up by default) - this is exactly why
+      // the LACRA /apply registration wizard's "Download Application
+      // Summary" and "Print Application" buttons appeared to do nothing
+      // when opened inside this embedded WebView, even though they work
+      // fine in a normal mobile/desktop browser. To fix this without any
+      // fragile blob/download interception, the web page itself detects
+      // this JavaScript channel (`window.LacraDocument`) and, when
+      // present, posts the generated PDF as a base64 JSON payload here
+      // instead of calling the browser APIs - see `_handleDocumentMessage`
+      // below, which hands the bytes off to Android's native print/share
+      // UI via the `printing` package (print dialog supports "Save as
+      // PDF" too, so one native entry point covers both actions).
+      ..addJavaScriptChannel(
+        'LacraDocument',
+        onMessageReceived: _handleDocumentMessage,
+      )
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (String url) {
@@ -87,8 +107,48 @@ class _WebViewScreenState extends State<WebViewScreen> {
     // handler. iOS's WKWebView-based implementation already has native
     // file-chooser support, so this is only needed on Android.
     final platformController = _controller!.platform;
-    if (!kIsWeb && Platform.isAndroid && platformController is AndroidWebViewController) {
+    if (!kIsWeb &&
+        Platform.isAndroid &&
+        platformController is AndroidWebViewController) {
       platformController.setOnShowFileSelector(_androidFilePicker);
+    }
+  }
+
+  // Handles a message posted by the web page's `window.LacraDocument`
+  // bridge. Expected JSON payload: {"action": "print"|"download",
+  // "filename": "...", "base64": "<pdf bytes, no data: prefix>"}.
+  // "print" opens Android's native print dialog (which also offers "Save
+  // as PDF"); "download" goes straight to the share sheet so the user can
+  // save it to Files, email it, etc. Both actions ultimately rely on the
+  // same decoded PDF bytes, so a failure to parse/decode the payload is
+  // reported back to the user rather than failing silently.
+  Future<void> _handleDocumentMessage(JavaScriptMessage message) async {
+    try {
+      final data = jsonDecode(message.message) as Map<String, dynamic>;
+      final action = data['action'] as String? ?? 'download';
+      final filename = (data['filename'] as String?) ?? 'document.pdf';
+      final base64Data = data['base64'] as String?;
+      if (base64Data == null || base64Data.isEmpty) {
+        throw Exception('No document data received');
+      }
+      final bytes = base64Decode(base64Data);
+
+      if (action == 'print') {
+        await Printing.layoutPdf(onLayout: (_) async => bytes);
+      } else {
+        await Printing.sharePdf(bytes: bytes, filename: filename);
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('WebView document bridge error: $e');
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open the document. Please try again.'),
+          ),
+        );
+      }
     }
   }
 
